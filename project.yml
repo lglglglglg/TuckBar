@@ -18,7 +18,8 @@ targets:
     sources:
       - Sources
     resources:
-      - Resources
+      - path: Resources/AppIcon.icns
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hanshijiu.MenuBarOrganizer
