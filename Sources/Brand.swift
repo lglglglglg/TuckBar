@@ -17,10 +17,13 @@ enum Brand {
             path.lineCapStyle = .round
             path.lineJoinStyle = .round
             let inset: CGFloat = colored ? 0.23 : 0.10
-            let tray = NSRect(x: size * inset, y: size * 0.28, width: size * (1 - inset * 2), height: size * 0.30)
-            let upper = NSRect(x: tray.minX, y: size * 0.49, width: tray.width, height: tray.height)
-            path.append(NSBezierPath(roundedRect: upper, xRadius: size * 0.09, yRadius: size * 0.09))
-            path.append(NSBezierPath(roundedRect: tray, xRadius: size * 0.09, yRadius: size * 0.09))
+            let tray = NSRect(x: size * inset, y: size * 0.29, width: size * (1 - inset * 2), height: size * 0.42)
+            path.append(NSBezierPath(roundedRect: tray, xRadius: size * 0.10, yRadius: size * 0.10))
+            path.move(to: NSPoint(x: tray.minX + size * 0.06, y: size * 0.52))
+            path.line(to: NSPoint(x: tray.maxX - size * 0.06, y: size * 0.52))
+            path.move(to: NSPoint(x: size * 0.43, y: tray.minY))
+            path.line(to: NSPoint(x: size * 0.50, y: size * 0.22))
+            path.line(to: NSPoint(x: size * 0.57, y: tray.minY))
             path.stroke()
             return true
         }

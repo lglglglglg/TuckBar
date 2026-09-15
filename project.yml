@@ -26,8 +26,8 @@ targets:
         PRODUCT_NAME: TuckBar
         INFOPLIST_FILE: Config/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "0.8.3"
-        CURRENT_PROJECT_VERSION: "24"
+        MARKETING_VERSION: "0.8.4"
+        CURRENT_PROJECT_VERSION: "25"
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
 
