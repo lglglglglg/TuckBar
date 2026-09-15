@@ -22,6 +22,7 @@ mkdir -p dist
 ditto "$source_app" "$stable_app"
 mkdir -p "$stable_app/Contents/Resources"
 ditto "$project_root/Resources/AppIcon.icns" "$stable_app/Contents/Resources/AppIcon.icns"
+ditto "$project_root/Resources/TuckBarBrand.png" "$stable_app/Contents/Resources/TuckBarBrand.png"
 if [[ "$signing_identity" == "-" ]]; then
 codesign --force --deep --sign - \
   --identifier com.hanshijiu.MenuBarOrganizer \
