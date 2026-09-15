@@ -1,0 +1,53 @@
+name: MenuBarOrganizer
+
+options:
+  bundleIdPrefix: com.hanshijiu
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+
+targets:
+  MenuBarOrganizer:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    resources:
+      - Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hanshijiu.MenuBarOrganizer
+        PRODUCT_NAME: MenuBarOrganizer
+        INFOPLIST_FILE: Config/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        MARKETING_VERSION: "0.8.0"
+        CURRENT_PROJECT_VERSION: "21"
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_APP_SANDBOX: NO
+
+  MenuBarOrganizerTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - Tests
+    dependencies:
+      - target: MenuBarOrganizer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hanshijiu.MenuBarOrganizerTests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  MenuBarOrganizer:
+    build:
+      targets:
+        MenuBarOrganizer: all
+        MenuBarOrganizerTests: [test]
+    test:
+      targets:
+        - MenuBarOrganizerTests

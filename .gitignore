@@ -1,0 +1,13 @@
+.DS_Store
+build/
+build-*/
+dist/
+.env
+.env.*
+*.p12
+*.p8
+*.cer
+build-release*/
+DerivedData/
+*.xcuserstate
+xcuserdata/
