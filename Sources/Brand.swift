@@ -18,15 +18,15 @@ enum Brand {
             let inset: CGFloat = colored ? 0.25 : 0.13
             let left = size * inset
             let right = size * (1 - inset)
-            path.move(to: NSPoint(x: left, y: size * 0.73))
-            path.line(to: NSPoint(x: right, y: size * 0.73))
-            path.move(to: NSPoint(x: left, y: size * 0.51))
-            path.line(to: NSPoint(x: left, y: size * 0.27))
-            path.line(to: NSPoint(x: right, y: size * 0.27))
-            path.line(to: NSPoint(x: right, y: size * 0.51))
-            path.move(to: NSPoint(x: size * 0.40, y: size * 0.52))
-            path.line(to: NSPoint(x: size * 0.50, y: size * 0.42))
-            path.line(to: NSPoint(x: size * 0.60, y: size * 0.52))
+            path.move(to: NSPoint(x: left, y: size * 0.66))
+            path.line(to: NSPoint(x: right, y: size * 0.66))
+            path.move(to: NSPoint(x: left, y: size * 0.61))
+            path.line(to: NSPoint(x: left, y: size * 0.31))
+            path.line(to: NSPoint(x: right, y: size * 0.31))
+            path.line(to: NSPoint(x: right, y: size * 0.61))
+            path.move(to: NSPoint(x: size * 0.38, y: size * 0.50))
+            path.line(to: NSPoint(x: size * 0.50, y: size * 0.39))
+            path.line(to: NSPoint(x: size * 0.62, y: size * 0.50))
             path.stroke()
             return true
         }

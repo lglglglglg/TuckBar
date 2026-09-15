@@ -26,8 +26,8 @@ targets:
         PRODUCT_NAME: MenuBarOrganizer
         INFOPLIST_FILE: Config/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "0.8.0"
-        CURRENT_PROJECT_VERSION: "21"
+        MARKETING_VERSION: "0.8.1"
+        CURRENT_PROJECT_VERSION: "22"
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
 
