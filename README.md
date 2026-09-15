@@ -53,7 +53,7 @@ xcodebuild -project MenuBarOrganizer.xcodeproj -scheme MenuBarOrganizer -configu
 
 当前可运行产物位于 `build/Build/Products/Debug/MenuBarOrganizer.app`。
 
-固定测试入口是 `dist/MenuBarOrganizer.app`，打开后显示名称为 TuckBar。请始终从这个路径启动并授权，避免 macOS 把带不同版本号路径的构建识别为不同的权限对象。带版本号的交付物使用 ZIP 保存，不再并列存放多个同 Bundle ID 的 `.app` 副本。
+固定测试入口是 `dist/TuckBar.app`。请始终从这个路径启动并授权，避免 macOS 把不同路径的构建识别为不同的权限对象。交付物使用 ZIP 保存，项目目录只保留一个当前 `.app`。
 
 仓库建议名：`tuckbar`  
 仓库简介：`A macOS menu bar organizer inspired by iBar and Ice. TuckBar automatically tucks away third-party menu bar items and lets you reveal and activate them from a compact panel.`
