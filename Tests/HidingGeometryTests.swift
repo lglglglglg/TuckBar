@@ -1,5 +1,5 @@
 import XCTest
-@testable import MenuBarOrganizer
+@testable import TuckBar
 
 final class HidingGeometryTests: XCTestCase {
     func testUsesStableOffscreenSectionLength() {

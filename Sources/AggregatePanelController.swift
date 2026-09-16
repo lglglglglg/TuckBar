@@ -4,7 +4,6 @@ import SwiftUI
 @MainActor
 final class AggregatePanelController {
     private var panel: NSPanel?
-    private var snapshotTask: Task<Void, Never>?
     private var activateItem: ((MenuBarItemDescriptor) -> Void)?
     private var snapshotCache: [String: NSImage] = [:]
     private(set) var items: [MenuBarItemDescriptor] = []
@@ -13,6 +12,12 @@ final class AggregatePanelController {
 
     func hasCachedSnapshots(for items: [MenuBarItemDescriptor]) -> Bool {
         !items.isEmpty && items.allSatisfy { snapshotCache[$0.persistentIdentifier] != nil }
+    }
+
+    func cachedSnapshotCount(for items: [MenuBarItemDescriptor]) -> Int {
+        items.reduce(into: 0) { count, item in
+            if snapshotCache[item.persistentIdentifier] != nil { count += 1 }
+        }
     }
 
     func preloadSnapshots(for sourceItems: [MenuBarItemDescriptor]) async {
@@ -31,30 +36,16 @@ final class AggregatePanelController {
         anchorWindow: NSWindow?,
         activate: @escaping (MenuBarItemDescriptor) -> Void
     ) {
-        snapshotTask?.cancel()
         activateItem = activate
-        items = selectedItems.map { item in
+        items = selectedItems.compactMap { item in
+            guard let snapshot = snapshotCache[item.persistentIdentifier] else { return nil }
             var cachedItem = item
-            cachedItem.snapshot = snapshotCache[item.persistentIdentifier]
+            cachedItem.snapshot = snapshot
             return cachedItem
         }
         rebuildPanel()
         positionPanel(anchorWindow: anchorWindow)
         panel?.orderFrontRegardless()
-
-        let discoveredItems = items
-        snapshotTask = Task { [weak self] in
-            let enrichedItems = await MenuBarItemSnapshotService.enrich(discoveredItems)
-            guard !Task.isCancelled, let self else { return }
-            for item in enrichedItems {
-                if let snapshot = item.snapshot {
-                    snapshotCache[item.persistentIdentifier] = snapshot
-                }
-            }
-            items = enrichedItems
-            rebuildPanel()
-            positionPanel(anchorWindow: anchorWindow)
-        }
     }
 
     func hide() {

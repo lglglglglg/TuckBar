@@ -10,6 +10,8 @@ final class StatusBarController: NSObject {
     private var localMouseMonitor: Any?
     private var hoverOpenTask: Task<Void, Never>?
     private var hoverCloseTask: Task<Void, Never>?
+    private var panelPresentationTask: Task<Void, Never>?
+    private var panelPresentationID: UUID?
     private var isApplyingLayout = false
 
     private lazy var toggleItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
@@ -43,20 +45,33 @@ final class StatusBarController: NSObject {
     }
 
     func toggle() {
-        if aggregatePanel.isVisible {
-            aggregatePanel.hide()
+        if aggregatePanel.isVisible || panelPresentationTask != nil {
+            dismissAggregatePanel()
         } else {
             showAggregatePanel()
         }
     }
 
     func showAggregatePanel() {
-        Task { [weak self] in await self?.showAggregatePanelNow() }
+        guard panelPresentationTask == nil, !aggregatePanel.isVisible else { return }
+        let presentationID = UUID()
+        panelPresentationID = presentationID
+        panelPresentationTask = Task { [weak self] in
+            guard let self else { return }
+            await self.showAggregatePanelNow()
+            if self.panelPresentationID == presentationID {
+                self.panelPresentationTask = nil
+                self.panelPresentationID = nil
+            }
+        }
     }
 
-    func refreshMenuBarItems() {
+    func refreshMenuBarItems(replacingKnownItems: Bool = false) {
         model.refreshPermissions()
-        model.updateDiscoveredItems(MenuBarItemDiscovery.discover(on: currentScreenFrame))
+        model.updateDiscoveredItems(
+            MenuBarItemDiscovery.discover(on: currentScreenFrame),
+            replacingKnownItems: replacingKnownItems
+        )
     }
 
     func applyHiddenItems() {
@@ -64,11 +79,12 @@ final class StatusBarController: NSObject {
     }
 
     func revealAllItems() {
+        dismissAggregatePanel(restoreCollapsedLayout: false)
         hidingEngine.expand()
         model.updateHidingState(applied: false, message: "已暂时展开全部原始菜单栏项目")
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(300))
-            self?.refreshMenuBarItems()
+            self?.refreshMenuBarItems(replacingKnownItems: true)
         }
     }
 
@@ -91,7 +107,7 @@ final class StatusBarController: NSObject {
     }
 
     func expandBeforeTermination() {
-        aggregatePanel.hide()
+        dismissAggregatePanel(restoreCollapsedLayout: false)
         hidingEngine.expand()
     }
 
@@ -116,6 +132,7 @@ final class StatusBarController: NSObject {
 
     private func applyHiddenItemsNow() async {
         guard !isApplyingLayout else { return }
+        dismissAggregatePanel(restoreCollapsedLayout: false)
         isApplyingLayout = true
         defer { isApplyingLayout = false }
 
@@ -134,7 +151,7 @@ final class StatusBarController: NSObject {
         hidingEngine.expand()
         model.updateHidingState(applied: false, message: "正在整理原始菜单栏项目…")
         try? await Task.sleep(for: .milliseconds(300))
-        refreshMenuBarItems()
+        refreshMenuBarItems(replacingKnownItems: true)
 
         // Capture original status-item artwork while every selected item is
         // still visible. The aggregate bar can then open without placeholders
@@ -188,6 +205,7 @@ final class StatusBarController: NSObject {
     }
 
     private func showAggregatePanelNow() async {
+        guard !isApplyingLayout else { return }
         model.refreshPermissions()
         guard model.hasScreenRecordingPermission else {
             aggregatePanel.hide()
@@ -203,10 +221,30 @@ final class StatusBarController: NSObject {
             && !aggregatePanel.hasCachedSnapshots(for: selectedItems)
         if needsCapture {
             hidingEngine.expandHiddenSection()
-            try? await Task.sleep(for: .milliseconds(280))
+            guard await waitUnlessCancelled(.milliseconds(280)) else {
+                restoreCollapsedLayoutIfNeeded()
+                return
+            }
             refreshMenuBarItems()
             selectedItems = model.hiddenItems
+            await aggregatePanel.preloadSnapshots(for: selectedItems)
         }
+
+        // The source items must be hidden before the aggregate panel appears.
+        // Showing both at once creates a duplicate row and exposes internal
+        // capture work to the user.
+        restoreCollapsedLayoutIfNeeded()
+        guard await waitUnlessCancelled(.milliseconds(80)) else { return }
+
+        let cachedCount = aggregatePanel.cachedSnapshotCount(for: selectedItems)
+        guard selectedItems.isEmpty || cachedCount > 0 else {
+            model.updateHidingState(
+                applied: true,
+                message: "暂时无法读取菜单栏图标，请稍后重新扫描"
+            )
+            return
+        }
+
         aggregatePanel.refreshAndShow(
             items: selectedItems,
             anchorWindow: toggleItem.button?.window,
@@ -214,9 +252,38 @@ final class StatusBarController: NSObject {
                 Task { await self?.activateHiddenItem(item) }
             }
         )
-        if needsCapture {
-            try? await Task.sleep(for: .milliseconds(650))
-            if !selectedItems.isEmpty { hidingEngine.collapse() }
+        if cachedCount < selectedItems.count {
+            model.updateHidingState(
+                applied: true,
+                message: "已显示 \(cachedCount)/\(selectedItems.count) 项；暂时无法读取的项目已忽略"
+            )
+        }
+    }
+
+    private func dismissAggregatePanel(restoreCollapsedLayout: Bool = true) {
+        panelPresentationTask?.cancel()
+        panelPresentationTask = nil
+        panelPresentationID = nil
+        hoverOpenTask?.cancel()
+        hoverOpenTask = nil
+        aggregatePanel.hide()
+        if restoreCollapsedLayout {
+            restoreCollapsedLayoutIfNeeded()
+        }
+    }
+
+    private func restoreCollapsedLayoutIfNeeded() {
+        if !model.managedItems.isEmpty {
+            hidingEngine.collapse()
+        }
+    }
+
+    private func waitUnlessCancelled(_ duration: Duration) async -> Bool {
+        do {
+            try await Task.sleep(for: duration)
+            return !Task.isCancelled
+        } catch {
+            return false
         }
     }
 
@@ -298,7 +365,7 @@ final class StatusBarController: NSObject {
             hoverCloseTask = Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(420))
                 guard !Task.isCancelled else { return }
-                self?.aggregatePanel.hide()
+                self?.dismissAggregatePanel()
                 self?.hoverCloseTask = nil
             }
         } else {

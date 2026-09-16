@@ -64,8 +64,15 @@ final class AppModel: ObservableObject {
         hiddenItems + alwaysHiddenItems
     }
 
-    func updateDiscoveredItems(_ items: [MenuBarItemDescriptor]) {
+    func updateDiscoveredItems(
+        _ items: [MenuBarItemDescriptor],
+        replacingKnownItems: Bool = false
+    ) {
         discoveredItems = items
+        if replacingKnownItems {
+            let currentIdentifiers = Set(items.map(\.persistentIdentifier))
+            knownItems = knownItems.filter { currentIdentifiers.contains($0.key) }
+        }
         for item in items {
             knownItems[item.persistentIdentifier] = item
             // Newly discovered third-party status items are collected on launch.

@@ -26,8 +26,8 @@ targets:
         PRODUCT_NAME: TuckBar
         INFOPLIST_FILE: Config/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        MARKETING_VERSION: "0.8.4"
-        CURRENT_PROJECT_VERSION: "25"
+        MARKETING_VERSION: "0.8.5"
+        CURRENT_PROJECT_VERSION: "26"
         CODE_SIGN_STYLE: Automatic
         ENABLE_APP_SANDBOX: NO
 
@@ -42,6 +42,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hanshijiu.MenuBarOrganizerTests
         GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/TuckBar.app/Contents/MacOS/TuckBar"
+        BUNDLE_LOADER: "$(TEST_HOST)"
 
 schemes:
   MenuBarOrganizer:
