@@ -7,32 +7,40 @@ enum Brand {
     static func image(size: CGFloat, colored: Bool) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             if colored {
-                let background = NSBezierPath(roundedRect: rect.insetBy(dx: size * 0.04, dy: size * 0.04), xRadius: size * 0.22, yRadius: size * 0.22)
-                NSColor(red: 0.055, green: 0.075, blue: 0.12, alpha: 1).setFill()
+                let background = NSBezierPath(
+                    roundedRect: rect.insetBy(dx: size * 0.055, dy: size * 0.055),
+                    xRadius: size * 0.22,
+                    yRadius: size * 0.22
+                )
+                NSColor(red: 0.055, green: 0.065, blue: 0.105, alpha: 1).setFill()
                 background.fill()
             }
-            let foreground = colored ? NSColor.white : NSColor.black
-            foreground.setFill()
-            let left = size * 0.22
-            let right = size * 0.78
-            let bottom = size * 0.25
-            let top = size * 0.63
-            let radius = size * 0.13
-            let tray = NSBezierPath(roundedRect: NSRect(x: left, y: bottom, width: right - left, height: top - bottom), xRadius: radius, yRadius: radius)
-            tray.windingRule = .evenOdd
-            let opening = NSBezierPath(roundedRect: NSRect(x: size * 0.30, y: size * 0.52, width: size * 0.40, height: size * 0.14), xRadius: size * 0.07, yRadius: size * 0.07)
-            tray.append(opening)
-            tray.fill()
 
-            if colored {
-                let fold = NSBezierPath()
-                fold.move(to: NSPoint(x: size * 0.63, y: size * 0.63))
-                fold.line(to: NSPoint(x: size * 0.73, y: size * 0.63))
-                fold.line(to: NSPoint(x: size * 0.63, y: size * 0.53))
-                fold.close()
-                NSColor(red: 0.20, green: 0.48, blue: 1.0, alpha: 1).setFill()
-                fold.fill()
-            }
+            let markFrame = colored
+                ? NSRect(x: size * 0.25, y: size * 0.29, width: size * 0.50, height: size * 0.42)
+                : NSRect(x: size * 0.08, y: size * 0.17, width: size * 0.84, height: size * 0.66)
+            let lineWidth = size * (colored ? 0.052 : 0.105)
+            let cornerRadius = size * (colored ? 0.10 : 0.14)
+            let foreground = colored
+                ? NSColor(calibratedWhite: 0.94, alpha: 1)
+                : NSColor.black
+
+            foreground.setStroke()
+            let outline = NSBezierPath(
+                roundedRect: markFrame.insetBy(dx: lineWidth / 2, dy: lineWidth / 2),
+                xRadius: cornerRadius,
+                yRadius: cornerRadius
+            )
+            outline.lineWidth = lineWidth
+            outline.lineJoinStyle = .round
+            outline.stroke()
+
+            let divider = NSBezierPath()
+            divider.move(to: NSPoint(x: markFrame.minX + size * (colored ? 0.055 : 0.11), y: markFrame.midY))
+            divider.line(to: NSPoint(x: markFrame.maxX - size * (colored ? 0.055 : 0.11), y: markFrame.midY))
+            divider.lineWidth = lineWidth
+            divider.lineCapStyle = .round
+            divider.stroke()
             return true
         }
         image.isTemplate = !colored

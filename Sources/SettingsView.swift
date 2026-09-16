@@ -69,7 +69,7 @@ struct SettingsView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             VStack(spacing: 12) {
-                Image(nsImage: Brand.image(size: 136, colored: true))
+                Image(nsImage: brandIcon)
                     .resizable()
                     .frame(width: 68, height: 68)
                 Text(Brand.name)
@@ -121,6 +121,13 @@ struct SettingsView: View {
         case .about:
             aboutPage
         }
+    }
+
+    private var brandIcon: NSImage {
+        guard let url = Bundle.main.url(forResource: "TuckBarBrand", withExtension: "png"),
+              let image = NSImage(contentsOf: url)
+        else { return Brand.image(size: 136, colored: true) }
+        return image
     }
 
     private var generalPage: some View {

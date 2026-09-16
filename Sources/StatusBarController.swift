@@ -122,7 +122,8 @@ final class StatusBarController: NSObject {
         toggleItem.autosaveName = "com.hanshijiu.MenuBarOrganizer.toggle"
         toggleItem.isVisible = true
         guard let button = toggleItem.button else { return }
-        button.image = Brand.image(size: 18, colored: false)
+        button.image = Brand.image(size: 21, colored: false)
+        button.imageScaling = .scaleProportionallyDown
         button.imagePosition = .imageOnly
         button.toolTip = "TuckBar：打开收纳条"
         button.target = self

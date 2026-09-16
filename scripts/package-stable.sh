@@ -5,7 +5,7 @@ set -euo pipefail
 project_root="${0:A:h:h}"
 source_app="$project_root/build-release-stable/Build/Products/Release/TuckBar.app"
 stable_app="$project_root/dist/TuckBar.app"
-versioned_archive="$project_root/dist/TuckBar-0.8.5-alpha.zip"
+versioned_archive="$project_root/dist/TuckBar-0.8.6-alpha.zip"
 designated_requirement='designated => identifier "com.hanshijiu.MenuBarOrganizer"'
 signing_identity="${MENU_BAR_SIGNING_IDENTITY:--}"
 
@@ -19,9 +19,9 @@ xcodebuild \
   build CODE_SIGNING_ALLOWED=NO
 
 mkdir -p dist
+rm -rf "$stable_app"
 ditto "$source_app" "$stable_app"
 mkdir -p "$stable_app/Contents/Resources"
-ditto "$project_root/Resources/AppIcon.icns" "$stable_app/Contents/Resources/AppIcon.icns"
 ditto "$project_root/Resources/TuckBarBrand.png" "$stable_app/Contents/Resources/TuckBarBrand.png"
 if [[ "$signing_identity" == "-" ]]; then
 codesign --force --deep --sign - \
