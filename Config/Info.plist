@@ -14,8 +14,8 @@
     <string>TuckBar</string>
     <key>CFBundleDisplayName</key>
     <string>TuckBar</string>
-	<key>CFBundleIconFile</key>
-	<string>TuckBarBrand.png</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

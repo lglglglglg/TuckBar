@@ -15,7 +15,9 @@
 		6ACB3EF3C86E6DF8B431C3B2 /* AggregatePanelController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ED6BF6418F21A1AC221D8F7 /* AggregatePanelController.swift */; };
 		7034347D704B0825E6AB35F1 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56D8E4A832A2285065CDB6B /* Brand.swift */; };
 		773B1D11BE3555852E37E9AD /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7520F8C42EB7DF9DA7FDE575 /* StatusBarController.swift */; };
+		8A491C18A3EB8C445F790F94 /* TuckBarBrand.png in Resources */ = {isa = PBXBuildFile; fileRef = 51545B43A80D031F86640E2C /* TuckBarBrand.png */; };
 		995D713BB2139C50AC76A0DA /* MenuBarHidingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021B11FF4FBB4ABC778B2BF1 /* MenuBarHidingEngine.swift */; };
+		A4DF86D9A42442329575C9E1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 57D4956958FC413A74B6F547 /* Assets.xcassets */; };
 		A73B4E40EF8737038CDFBFDA /* AggregatePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71166A79B51263C947A6638C /* AggregatePanelView.swift */; };
 		AA308799FC4408A174753F2C /* HidingGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCAB42BD4C7A0E1522CE320 /* HidingGeometryTests.swift */; };
 		BC11EC4427A1A35FE4C2875A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120E9F11581451C5FF82DA66 /* AppModelTests.swift */; };
@@ -43,6 +45,8 @@
 		1ED6BF6418F21A1AC221D8F7 /* AggregatePanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggregatePanelController.swift; sourceTree = "<group>"; };
 		1F8664776C6EF400D8B1A3CE /* MenuBarItemDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemDescriptor.swift; sourceTree = "<group>"; };
 		2B935FB088ACBEB8646F09EE /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		51545B43A80D031F86640E2C /* TuckBarBrand.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = TuckBarBrand.png; sourceTree = "<group>"; };
+		57D4956958FC413A74B6F547 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6487392E193684A99514D447 /* MenuBarOrganizerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MenuBarOrganizerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		68E5BA2C248172D1AA4AF904 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		6D3D13C9DB01A97EF74AFCBA /* MenuBarItemSourceResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemSourceResolver.swift; sourceTree = "<group>"; };
@@ -93,6 +97,7 @@
 		74A7314472BFE5AC1608B341 = {
 			isa = PBXGroup;
 			children = (
+				F52A39AA80C05792FA0884EB /* Resources */,
 				2070B9F70063E1CA8BB74F17 /* Sources */,
 				6BD9125C025EFF5468848592 /* Tests */,
 				9351F6D0CD76EC6CEFF3D73D /* Products */,
@@ -108,6 +113,15 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F52A39AA80C05792FA0884EB /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				57D4956958FC413A74B6F547 /* Assets.xcassets */,
+				51545B43A80D031F86640E2C /* TuckBarBrand.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -116,6 +130,7 @@
 			buildConfigurationList = 7E9CA215CD50495CB3A6CEE6 /* Build configuration list for PBXNativeTarget "MenuBarOrganizer" */;
 			buildPhases = (
 				20A0A49CBC7F1F20C21E0772 /* Sources */,
+				E6E5532EA28F477813CD687B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -180,6 +195,18 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		E6E5532EA28F477813CD687B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A4DF86D9A42442329575C9E1 /* Assets.xcassets in Resources */,
+				8A491C18A3EB8C445F790F94 /* TuckBarBrand.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		030CFCED03E354D496D5189A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -229,7 +256,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 28;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -237,7 +264,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.8.6;
+				MARKETING_VERSION = 0.8.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;
@@ -313,7 +340,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 27;
+				CURRENT_PROJECT_VERSION = 28;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -321,7 +348,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.8.6;
+				MARKETING_VERSION = 0.8.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;
