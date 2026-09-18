@@ -5,7 +5,7 @@ set -euo pipefail
 project_root="${0:A:h:h}"
 source_app="$project_root/build-release-stable/Build/Products/Release/TuckBar.app"
 stable_app="$project_root/dist/TuckBar.app"
-versioned_archive="$project_root/dist/TuckBar-0.8.9-alpha.zip"
+versioned_archive="$project_root/dist/TuckBar-0.9.0-alpha.zip"
 designated_requirement='designated => identifier "com.hanshijiu.MenuBarOrganizer"'
 signing_identity="${MENU_BAR_SIGNING_IDENTITY:--}"
 

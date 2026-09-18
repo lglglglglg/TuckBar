@@ -225,7 +225,10 @@ final class StatusBarController: NSObject {
         // expand the hidden section just to capture an icon: that creates a
         // visible original-row flash before the aggregate panel appears.
         restoreCollapsedLayoutIfNeeded()
-        guard !Task.isCancelled else { return }
+        // NSStatusBar applies a length change on its next layout pass. Do not
+        // order the aggregate panel until that pass has completed, otherwise
+        // the originals and the panel can be visible at the same time.
+        guard await waitUnlessCancelled(.milliseconds(160)) else { return }
 
         let cachedCount = aggregatePanel.cachedSnapshotCount(for: selectedItems)
         guard selectedItems.isEmpty || cachedCount > 0 else {
@@ -339,6 +342,12 @@ final class StatusBarController: NSObject {
         let isOverPanel = aggregatePanel.contains(point)
 
         if isOverTrigger, model.openOnHover {
+            // Re-assert the collapsed boundary as soon as the pointer enters
+            // the trigger. This covers the case where macOS restored the
+            // status-item layout after wake before the delayed hover action.
+            if !isApplyingLayout {
+                restoreCollapsedLayoutIfNeeded()
+            }
             hoverCloseTask?.cancel()
             guard !aggregatePanel.isVisible, hoverOpenTask == nil else { return }
             hoverOpenTask = Task { [weak self] in
