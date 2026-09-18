@@ -22,7 +22,6 @@ enum MenuBarItemActivator {
         }
 
         let target = CGPoint(x: item.frame.midX, y: item.frame.midY)
-        let original = CGEvent(source: nil)?.location
         let source = CGEventSource(stateID: .hidSystemState)
 
         guard
@@ -33,10 +32,10 @@ enum MenuBarItemActivator {
         mouseDown.post(tap: .cghidEventTap)
         mouseUp.post(tap: .cghidEventTap)
 
-        if let original,
-           let restore = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: original, mouseButton: .left) {
-            restore.post(tap: .cghidEventTap)
-        }
+        // The event location is enough to activate a status item. Do not post
+        // a synthetic mouseMoved event afterwards: it changes the user's
+        // pointer position from the hover panel and can reopen/close the
+        // panel while the activation transaction is still in flight.
         return true
     }
 }

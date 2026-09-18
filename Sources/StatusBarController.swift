@@ -13,8 +13,10 @@ final class StatusBarController: NSObject {
     private var panelPresentationTask: Task<Void, Never>?
     private var panelPresentationID: UUID?
     private var layoutRecoveryTask: Task<Void, Never>?
+    private var itemActivationTask: Task<Void, Never>?
     private var isApplyingLayout = false
     private var isRecoveringLayout = false
+    private var isActivatingItem = false
 
     private lazy var toggleItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
     private lazy var hidingEngine = MenuBarHidingEngine(statusBar: statusBar)
@@ -57,7 +59,10 @@ final class StatusBarController: NSObject {
     }
 
     func showAggregatePanel() {
-        guard panelPresentationTask == nil, !aggregatePanel.isVisible else { return }
+        guard !isActivatingItem,
+              panelPresentationTask == nil,
+              !aggregatePanel.isVisible
+        else { return }
         let presentationID = UUID()
         panelPresentationID = presentationID
         panelPresentationTask = Task { [weak self] in
@@ -136,7 +141,7 @@ final class StatusBarController: NSObject {
     }
 
     private func applyHiddenItemsNow() async {
-        guard !isApplyingLayout else { return }
+        guard !isApplyingLayout, !isActivatingItem else { return }
         dismissAggregatePanel(restoreCollapsedLayout: false)
         isApplyingLayout = true
         defer { isApplyingLayout = false }
@@ -243,7 +248,10 @@ final class StatusBarController: NSObject {
             items: selectedItems,
             anchorWindow: toggleItem.button?.window,
             activate: { [weak self] item in
-                Task { await self?.activateHiddenItem(item) }
+                guard let self else { return }
+                self.itemActivationTask = Task { [weak self] in
+                    await self?.activateHiddenItem(item)
+                }
             }
         )
         if cachedCount < selectedItems.count {
@@ -282,11 +290,30 @@ final class StatusBarController: NSObject {
     }
 
     private func activateHiddenItem(_ item: MenuBarItemDescriptor) async {
+        // A panel button starts an asynchronous reveal/click/restore
+        // transaction. Ignore a second click until the first transaction has
+        // finished; concurrent Command drags otherwise race and both can
+        // resolve to the first item's post-layout frame.
+        guard !isActivatingItem else { return }
+        isActivatingItem = true
+        defer {
+            isActivatingItem = false
+            itemActivationTask = nil
+        }
+
+        hoverOpenTask?.cancel()
+        hoverOpenTask = nil
+        hoverCloseTask?.cancel()
+        hoverCloseTask = nil
+
         // Reveal the regular hidden section only long enough to move this one
         // real status item across the visible boundary. Always-hidden items
         // remain displaced throughout the operation.
         hidingEngine.expandHiddenSection()
-        try? await Task.sleep(for: .milliseconds(240))
+        guard await waitUnlessCancelled(.milliseconds(180)) else {
+            hidingEngine.collapse()
+            return
+        }
         var currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
         model.updateDiscoveredItems(currentItems)
         guard let current = currentItems.first(where: {
@@ -298,7 +325,7 @@ final class StatusBarController: NSObject {
 
         let isolated = await hidingEngine.moveToVisibleSection(current)
         hidingEngine.collapse()
-        try? await Task.sleep(for: .milliseconds(140))
+        guard await waitUnlessCancelled(.milliseconds(100)) else { return }
 
         currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
         model.updateDiscoveredItems(currentItems)
@@ -311,11 +338,11 @@ final class StatusBarController: NSObject {
             return
         }
 
-        // The menu-open detector comes next; for now this delay preserves the
-        // native item's interaction window before it is returned to its section.
-        try? await Task.sleep(for: .milliseconds(1_100))
-        hidingEngine.expandHiddenSection()
-        try? await Task.sleep(for: .milliseconds(220))
+        // Preserve the native menu's interaction window before returning the
+        // item. Keep the regular hidden section collapsed while doing so; the
+        // old implementation expanded it again, which made every managed
+        // icon flash back into the menu bar after a click.
+        guard await waitUnlessCancelled(.milliseconds(1_100)) else { return }
         currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
         if let exposed = currentItems.first(where: {
             $0.persistentIdentifier == item.persistentIdentifier
@@ -336,7 +363,7 @@ final class StatusBarController: NSObject {
     }
 
     private func pointerMoved(to point: CGPoint) {
-        guard !isRecoveringLayout else { return }
+        guard !isRecoveringLayout, !isActivatingItem else { return }
         let triggerFrame = toggleItem.button?.window?.frame.insetBy(dx: -5, dy: -4)
         let isOverTrigger = triggerFrame?.contains(point) == true
         let isOverPanel = aggregatePanel.contains(point)
@@ -433,6 +460,9 @@ final class StatusBarController: NSObject {
     }
 
     @objc private func workspaceWillSleep() {
+        itemActivationTask?.cancel()
+        itemActivationTask = nil
+        isActivatingItem = false
         layoutRecoveryTask?.cancel()
         layoutRecoveryTask = nil
         hoverOpenTask?.cancel()
@@ -451,6 +481,9 @@ final class StatusBarController: NSObject {
         after delay: Duration,
         reapplyLayout: Bool = true
     ) {
+        itemActivationTask?.cancel()
+        itemActivationTask = nil
+        isActivatingItem = false
         layoutRecoveryTask?.cancel()
         hoverOpenTask?.cancel()
         hoverOpenTask = nil
