@@ -57,6 +57,13 @@ enum MenuBarItemActivator {
               let up = event(.leftMouseUp, at: location, windowID: item.id, ownerPID: ownerPID, source: source)
         else { return false }
 
+        // AXMenuBarItem's native action is AXPick, not AXPress. It is the
+        // least disruptive path because it asks the owning status item to
+        // open its own menu without another cursor gesture.
+        if MenuBarItemSourceResolver.pick(item, visibleFrame: frame) {
+            return true
+        }
+
         let popupBefore = popupWindowIDs(ownerPID: ownerPID)
         postClick(down: down, up: up)
         if popupWindowIDs(ownerPID: ownerPID).subtracting(popupBefore).isEmpty {

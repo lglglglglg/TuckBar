@@ -13,6 +13,48 @@ enum MenuBarItemSourceResolver {
         let occurrence: Int
     }
 
+    /// Menu-bar AX elements expose `AXPick` on current macOS. `AXPress` may
+    /// report success or do nothing, especially for Control Center-hosted
+    /// status items, so keep this as the first activation path after the
+    /// target has been revealed on-screen.
+    static func pick(_ item: MenuBarItemDescriptor, visibleFrame: CGRect) -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+
+        let unidentified = item.identifier.hasPrefix("unidentified.")
+        for app in NSWorkspace.shared.runningApplications {
+            guard app.isFinishedLaunching,
+                  !app.isTerminated,
+                  app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+                  unidentified || app.bundleIdentifier == item.identifier
+            else { continue }
+
+            let applicationElement = AXUIElementCreateApplication(app.processIdentifier)
+            AXUIElementSetMessagingTimeout(applicationElement, 0.5)
+            guard let extrasMenuBar = elementAttribute(kAXExtrasMenuBarAttribute, of: applicationElement),
+                  let children = elementArrayAttribute(kAXChildrenAttribute, of: extrasMenuBar)
+            else { continue }
+
+            let target: AXUIElement?
+            if !unidentified, item.occurrence >= 0, item.occurrence < children.count {
+                target = children[item.occurrence]
+            } else {
+                target = children.min { lhs, rhs in
+                    distance(from: frame(of: lhs), to: visibleFrame)
+                        < distance(from: frame(of: rhs), to: visibleFrame)
+                }
+            }
+
+            guard let target else { continue }
+            AXUIElementSetMessagingTimeout(target, 0.5)
+            for action in ["AXPick", kAXPressAction as String, kAXShowMenuAction as String] {
+                let result = AXUIElementPerformAction(target, action as CFString)
+                if result == .success { return true }
+                if result == .actionUnsupported || result == .notImplemented { continue }
+            }
+        }
+        return false
+    }
+
     static func sourceIdentities(for candidates: [Candidate]) -> [CGWindowID: SourceIdentity] {
         guard AXIsProcessTrusted(), !candidates.isEmpty else { return [:] }
 
@@ -62,6 +104,11 @@ enum MenuBarItemSourceResolver {
               let values = value as? [AXUIElement]
         else { return nil }
         return values
+    }
+
+    private static func distance(from childFrame: CGRect?, to targetFrame: CGRect) -> CGFloat {
+        guard let childFrame else { return .greatestFiniteMagnitude }
+        return hypot(childFrame.midX - targetFrame.midX, childFrame.midY - targetFrame.midY)
     }
 
     private static func frame(of element: AXUIElement) -> CGRect? {
