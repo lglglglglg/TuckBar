@@ -57,14 +57,17 @@ enum MenuBarItemActivator {
               let up = event(.leftMouseUp, at: location, windowID: item.id, ownerPID: ownerPID, source: source)
         else { return false }
 
+        let popupBefore = popupWindowIDs(ownerPID: ownerPID)
         // AXMenuBarItem's native action is AXPick, not AXPress. It is the
         // least disruptive path because it asks the owning status item to
-        // open its own menu without another cursor gesture.
-        if MenuBarItemSourceResolver.pick(item, visibleFrame: frame) {
+        // open its own menu without another cursor gesture. Do not treat an
+        // AX "success" as enough: some hosts acknowledge the action without
+        // creating a popup, so keep the window-targeted click as a fallback.
+        if MenuBarItemSourceResolver.pick(item, visibleFrame: frame),
+           waitForPopup(ownerPID: ownerPID, excluding: popupBefore) {
             return true
         }
 
-        let popupBefore = popupWindowIDs(ownerPID: ownerPID)
         postClick(down: down, up: up)
         if popupWindowIDs(ownerPID: ownerPID).subtracting(popupBefore).isEmpty {
             usleep(120_000)
@@ -148,6 +151,16 @@ enum MenuBarItemActivator {
             else { return nil }
             return CGWindowID(number.uint32Value)
         })
+    }
+
+    private static func waitForPopup(ownerPID: pid_t, excluding existing: Set<CGWindowID>) -> Bool {
+        for _ in 0..<8 {
+            if !popupWindowIDs(ownerPID: ownerPID).subtracting(existing).isEmpty {
+                return true
+            }
+            usleep(25_000)
+        }
+        return false
     }
 }
 
