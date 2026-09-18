@@ -21,29 +21,10 @@ enum MenuBarItemActivator {
             return false
         }
 
-        let target = CGPoint(x: item.frame.midX, y: item.frame.midY)
-        let original = CGEvent(source: nil)?.location
-        let source = CGEventSource(stateID: .hidSystemState)
-
-        guard
-            let mouseDown = CGEvent(mouseEventSource: source, mouseType: .leftMouseDown, mouseCursorPosition: target, mouseButton: .left),
-            let mouseUp = CGEvent(mouseEventSource: source, mouseType: .leftMouseUp, mouseCursorPosition: target, mouseButton: .left)
-        else { return false }
-
-        mouseDown.post(tap: .cghidEventTap)
-        mouseUp.post(tap: .cghidEventTap)
-
-        // Restore the real pointer without injecting a mouseMoved event into
-        // AppKit's hover monitors. The click is still delivered at `target`,
-        // while the user keeps the pointer over the panel that they clicked.
-        if let original {
-            CGWarpMouseCursorPosition(original)
-        }
-
-        // The event location is enough to activate a status item. Do not post
-        // a synthetic mouseMoved event afterwards: it changes the user's
-        // pointer position from the hover panel and can reopen/close the
-        // panel while the activation transaction is still in flight.
-        return true
+        // Never synthesize a click at the status-item window's frame. That
+        // path temporarily exposes the item and lets AppKit move the pointer,
+        // which is the source of the visible "drawn by the mouse" animation.
+        // Pressing the AX menu-bar child activates the original item in place.
+        return MenuBarItemSourceResolver.press(item)
     }
 }

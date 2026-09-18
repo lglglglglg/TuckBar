@@ -290,10 +290,9 @@ final class StatusBarController: NSObject {
     }
 
     private func activateHiddenItem(_ item: MenuBarItemDescriptor) async {
-        // A panel button starts an asynchronous reveal/click/restore
-        // transaction. Ignore a second click until the first transaction has
-        // finished; concurrent Command drags otherwise race and both can
-        // resolve to the first item's post-layout frame.
+        // A panel button starts a short, serialized accessibility activation.
+        // The item must stay in the hidden section for the whole operation;
+        // revealing it and dragging it back is both visible and unreliable.
         guard !isActivatingItem else { return }
         isActivatingItem = true
         defer {
@@ -305,100 +304,13 @@ final class StatusBarController: NSObject {
         hoverOpenTask = nil
         hoverCloseTask?.cancel()
         hoverCloseTask = nil
-
-        // Reveal the regular hidden section only long enough to move this one
-        // real status item across the visible boundary. Always-hidden items
-        // remain displaced throughout the operation.
-        hidingEngine.expandHiddenSection()
-        guard await waitUnlessCancelled(.milliseconds(180)) else {
-            hidingEngine.collapse()
-            return
-        }
-        var currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
-        model.updateDiscoveredItems(currentItems)
-        guard let current = currentItems.first(where: {
-            $0.persistentIdentifier == item.persistentIdentifier
-        }) else {
-            hidingEngine.collapse()
-            return
-        }
-
-        let isolated = await hidingEngine.moveToVisibleSection(current)
-        hidingEngine.collapse()
-        guard await waitUnlessCancelled(.milliseconds(100)) else { return }
-
-        currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
-        model.updateDiscoveredItems(currentItems)
-        if let exposed = currentItems.first(where: {
-            $0.persistentIdentifier == item.persistentIdentifier
-        }) {
-            _ = MenuBarItemActivator.activate(exposed)
-        } else if !isolated {
-            model.updateHidingState(applied: true, message: "该项目无法单独临时显示")
-            return
-        }
-
-        // Preserve the native menu's interaction window before returning the
-        // item. Keep the regular hidden section collapsed while doing so; the
-        // old implementation expanded it again, which made every managed
-        // icon flash back into the menu bar after a click.
-        guard await waitUnlessCancelled(.milliseconds(1_100)) else {
-            hidingEngine.collapse()
-            return
-        }
-
-        let restored = await restoreHiddenItem(
-            persistentIdentifier: item.persistentIdentifier
-        )
-        if !restored {
+        let activated = MenuBarItemActivator.activate(item)
+        if !activated {
             model.updateHidingState(
                 applied: true,
-                message: "项目已打开，但暂时无法自动收回；请重新扫描"
+                message: "无法直接激活该菜单栏项目，请确认辅助功能权限并重新扫描"
             )
         }
-    }
-
-    /// Return a temporarily exposed item to the regular hidden section.
-    ///
-    /// A native status-item menu can keep its window alive for a short period
-    /// after the click. The first drag can therefore be rejected by macOS. We
-    /// verify the result after every attempt and use the expanded-boundary
-    /// path as a fallback; this is intentionally scoped to the one item so a
-    /// failed first attempt cannot leave the whole managed set visible.
-    private func restoreHiddenItem(persistentIdentifier: String) async -> Bool {
-        for attempt in 0..<3 {
-            if attempt == 1 {
-                hidingEngine.expandHiddenSection()
-                guard await waitUnlessCancelled(.milliseconds(180)) else {
-                    hidingEngine.collapse()
-                    return false
-                }
-            } else if attempt == 2 {
-                hidingEngine.collapse()
-                guard await waitUnlessCancelled(.milliseconds(260)) else {
-                    return false
-                }
-            }
-
-            let currentItems = MenuBarItemDiscovery.discover(on: currentScreenFrame)
-            model.updateDiscoveredItems(currentItems)
-            guard let exposed = currentItems.first(where: {
-                $0.persistentIdentifier == persistentIdentifier
-            }) else {
-                hidingEngine.collapse()
-                return true // already hidden or macOS has removed its window
-            }
-
-            if await hidingEngine.moveToHiddenSection(exposed) {
-                hidingEngine.collapse()
-                return true
-            }
-        }
-
-        hidingEngine.collapse()
-        let stillVisible = MenuBarItemDiscovery.discover(on: currentScreenFrame)
-            .contains { $0.persistentIdentifier == persistentIdentifier }
-        return !stillVisible
     }
 
     private func observePointerForHoverTrigger() {

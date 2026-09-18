@@ -13,6 +13,57 @@ enum MenuBarItemSourceResolver {
         let occurrence: Int
     }
 
+    /// Invoke a real status-item action without moving the status item.
+    ///
+    /// iBar/Ice keep the item in their hidden section and use the
+    /// accessibility representation of the menu-bar extra for activation.
+    /// This is deliberately separate from the CGWindow discovery path: a
+    /// window click would make macOS reveal the item, move the pointer and
+    /// produce the drag-like animation that the aggregate bar is meant to
+    /// avoid.
+    static func press(_ item: MenuBarItemDescriptor) -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+
+        let unidentified = item.identifier.hasPrefix("unidentified.")
+        for app in NSWorkspace.shared.runningApplications {
+            guard app.isFinishedLaunching,
+                  !app.isTerminated,
+                  app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+                  unidentified || app.bundleIdentifier == item.identifier
+            else { continue }
+
+            let applicationElement = AXUIElementCreateApplication(app.processIdentifier)
+            AXUIElementSetMessagingTimeout(applicationElement, 0.12)
+            guard let extrasMenuBar = elementAttribute(kAXExtrasMenuBarAttribute, of: applicationElement),
+                  let children = elementArrayAttribute(kAXChildrenAttribute, of: extrasMenuBar)
+            else { continue }
+
+            let target: AXUIElement?
+            if unidentified {
+                // Unresolved source identities can still be activated when
+                // the accessibility child exposes the same screen frame.
+                target = children.first { child in
+                    guard let childFrame = frame(of: child) else { return false }
+                    return hypot(childFrame.midX - item.frame.midX,
+                                 childFrame.midY - item.frame.midY) <= 3
+                }
+            } else if item.occurrence >= 0, item.occurrence < children.count {
+                // `occurrence` is recorded from this exact children array in
+                // sourceIdentities(for:), so it remains stable across layout
+                // changes while the owning app is running.
+                target = children[item.occurrence]
+            } else {
+                target = nil
+            }
+
+            guard let target,
+                  AXUIElementPerformAction(target, kAXPressAction as CFString) == .success
+            else { continue }
+            return true
+        }
+        return false
+    }
+
     static func sourceIdentities(for candidates: [Candidate]) -> [CGWindowID: SourceIdentity] {
         guard AXIsProcessTrusted(), !candidates.isEmpty else { return [:] }
 
