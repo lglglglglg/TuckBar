@@ -56,10 +56,48 @@ enum MenuBarItemSourceResolver {
                 target = nil
             }
 
-            guard let target,
-                  AXUIElementPerformAction(target, kAXPressAction as CFString) == .success
-            else { continue }
-            return true
+            if let target, performMenuAction(on: target) {
+                return true
+            }
+
+            // A helper can reorder its AX children after a wake or a menu
+            // refresh. If the recorded occurrence no longer points at the
+            // original element, use the closest current child as a bounded
+            // fallback instead of clicking an unrelated screen coordinate.
+            if !unidentified {
+                let nearest = children.sorted {
+                    distance(from: frame(of: $0), to: item.frame)
+                        < distance(from: frame(of: $1), to: item.frame)
+                }
+                if let candidate = nearest.first,
+                   distance(from: frame(of: candidate), to: item.frame)
+                        <= max(40, item.frame.width * 2),
+                   performMenuAction(on: candidate) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    private static func distance(from childFrame: CGRect?, to itemFrame: CGRect) -> CGFloat {
+        guard let childFrame else { return .greatestFiniteMagnitude }
+        return hypot(childFrame.midX - itemFrame.midX, childFrame.midY - itemFrame.midY)
+    }
+
+    private static func performMenuAction(on element: AXUIElement) -> Bool {
+        // Some menu-bar helpers answer the first request with
+        // kAXErrorCannotComplete while they are rebuilding their menu. Apple
+        // documents that this result is retryable. The second action is the
+        // native menu-opening action used by status items that do not expose a
+        // normal button press.
+        AXUIElementSetMessagingTimeout(element, 0.5)
+        for action in [kAXPressAction as CFString, kAXShowMenuAction as CFString] {
+            for _ in 0..<2 {
+                let result = AXUIElementPerformAction(element, action)
+                if result == .success { return true }
+                if result == .actionUnsupported || result == .notImplemented { break }
+            }
         }
         return false
     }
