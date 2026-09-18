@@ -197,22 +197,19 @@ final class MenuBarHidingEngine {
         mouseDown.flags = .maskCommand
         mouseDown.post(tap: .cghidEventTap)
 
-        for step in 1...10 {
-            let progress = CGFloat(step) / 10
-            let point = CGPoint(
-                x: start.x + (end.x - start.x) * progress,
-                y: start.y + (end.y - start.y) * progress
-            )
-            guard let dragged = CGEvent(
-                mouseEventSource: source,
-                mouseType: .leftMouseDragged,
-                mouseCursorPosition: point,
-                mouseButton: .left
-            ) else { continue }
-            dragged.flags = .maskCommand
-            dragged.post(tap: .cghidEventTap)
-            try? await Task.sleep(for: .milliseconds(18))
-        }
+        // One destination event is enough for the status-bar Command-drag
+        // gesture. Interpolating ten points makes the operation look like a
+        // person is drawing the icon across the menu bar and gives macOS ten
+        // chances to relayout/reorder neighbouring items.
+        guard let dragged = CGEvent(
+            mouseEventSource: source,
+            mouseType: .leftMouseDragged,
+            mouseCursorPosition: end,
+            mouseButton: .left
+        ) else { return false }
+        dragged.flags = .maskCommand
+        dragged.post(tap: .cghidEventTap)
+        try? await Task.sleep(for: .milliseconds(40))
 
         guard let mouseUp = CGEvent(
             mouseEventSource: source,
