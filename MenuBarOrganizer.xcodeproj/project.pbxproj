@@ -24,6 +24,7 @@
 		BE0CF380C12E11A1A198D79B /* MenuBarItemDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 832742C490B205A5F8A95F26 /* MenuBarItemDiscovery.swift */; };
 		C10F9F7CEED2D5B1AD452A5F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68E5BA2C248172D1AA4AF904 /* SettingsView.swift */; };
 		C5583CA167BDE6DDF2FACD43 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B935FB088ACBEB8646F09EE /* AppModel.swift */; };
+		D82E5187DAEB1939C823F303 /* MouseCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F2E5324B416C51A532A7758 /* MouseCursor.swift */; };
 		E2B8A0842774F213CD426BC2 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D15E9916FED888733E0B00 /* AppDelegate.swift */; };
 		FB9CB2636217C83151DD77D2 /* HidingGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B8678023749BFA962871AE3 /* HidingGeometry.swift */; };
 /* End PBXBuildFile section */
@@ -41,6 +42,7 @@
 /* Begin PBXFileReference section */
 		021B11FF4FBB4ABC778B2BF1 /* MenuBarHidingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarHidingEngine.swift; sourceTree = "<group>"; };
 		0BCAB42BD4C7A0E1522CE320 /* HidingGeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HidingGeometryTests.swift; sourceTree = "<group>"; };
+		0F2E5324B416C51A532A7758 /* MouseCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseCursor.swift; sourceTree = "<group>"; };
 		120E9F11581451C5FF82DA66 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		1ED6BF6418F21A1AC221D8F7 /* AggregatePanelController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AggregatePanelController.swift; sourceTree = "<group>"; };
 		1F8664776C6EF400D8B1A3CE /* MenuBarItemDescriptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemDescriptor.swift; sourceTree = "<group>"; };
@@ -79,6 +81,7 @@
 				E8147FEAB288E54141CD0EA0 /* MenuBarItemSnapshotService.swift */,
 				6D3D13C9DB01A97EF74AFCBA /* MenuBarItemSourceResolver.swift */,
 				E949392C37D4337D004098B8 /* MenuBarOrganizerMain.swift */,
+				0F2E5324B416C51A532A7758 /* MouseCursor.swift */,
 				68E5BA2C248172D1AA4AF904 /* SettingsView.swift */,
 				7520F8C42EB7DF9DA7FDE575 /* StatusBarController.swift */,
 			);
@@ -234,6 +237,7 @@
 				0625BDF0B43405FE56C8A828 /* MenuBarItemSnapshotService.swift in Sources */,
 				02487971A203CC705B5831B9 /* MenuBarItemSourceResolver.swift in Sources */,
 				0F0CD7042DD345A1E4D14834 /* MenuBarOrganizerMain.swift in Sources */,
+				D82E5187DAEB1939C823F303 /* MouseCursor.swift in Sources */,
 				C10F9F7CEED2D5B1AD452A5F /* SettingsView.swift in Sources */,
 				773B1D11BE3555852E37E9AD /* StatusBarController.swift in Sources */,
 			);
@@ -256,7 +260,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -264,7 +268,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.5;
+				MARKETING_VERSION = 0.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;
@@ -340,7 +344,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -348,7 +352,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.5;
+				MARKETING_VERSION = 0.9.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;

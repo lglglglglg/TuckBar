@@ -4,6 +4,8 @@ import CoreGraphics
 
 @MainActor
 enum MenuBarItemActivator {
+    private static let windowIDField = CGEventField(rawValue: 0x33)!
+
     static var hasAccessibilityPermission: Bool {
         AXIsProcessTrusted()
     }
@@ -21,10 +23,90 @@ enum MenuBarItemActivator {
             return false
         }
 
-        // Never synthesize a click at the status-item window's frame. That
-        // path temporarily exposes the item and lets AppKit move the pointer,
-        // which is the source of the visible "drawn by the mouse" animation.
-        // Pressing the AX menu-bar child activates the original item in place.
-        return MenuBarItemSourceResolver.press(item)
+        // On macOS 26 the AX Extras tree can identify an item but often cannot
+        // actually open a Control Center-hosted status item. Mature managers
+        // such as Lloyd forward a real click to the revealed window instead.
+        // The window-id fields are essential: a bare CGEvent is accepted but
+        // is delivered to no menu, which was the failure in v0.9.4/0.9.5.
+        guard let info = windowInfo(for: item.id),
+              let frame = CGRect(dictionaryRepresentation: info.bounds as CFDictionary),
+              let ownerPID = info.ownerPID,
+              ownerPID > 0,
+              let source = CGEventSource(stateID: .hidSystemState)
+        else { return false }
+
+        let location = frame.center
+        let restore = MouseCursor.location
+        let permit: CGEventFilterMask = [
+            .permitLocalMouseEvents,
+            .permitLocalKeyboardEvents,
+            .permitSystemDefinedEvents
+        ]
+        source.setLocalEventsFilterDuringSuppressionState(
+            permit,
+            state: .eventSuppressionStateRemoteMouseDrag
+        )
+        source.setLocalEventsFilterDuringSuppressionState(
+            permit,
+            state: .eventSuppressionStateSuppressionInterval
+        )
+        source.localEventsSuppressionInterval = 0
+
+        guard let down = event(.leftMouseDown, at: location, windowID: item.id, ownerPID: ownerPID, source: source),
+              let up = event(.leftMouseUp, at: location, windowID: item.id, ownerPID: ownerPID, source: source)
+        else { return false }
+
+        MouseCursor.prepareBackgroundControl()
+        MouseCursor.hide()
+        down.post(tap: .cgSessionEventTap)
+        usleep(40_000)
+        up.post(tap: .cgSessionEventTap)
+        usleep(80_000)
+        if let restore { MouseCursor.warp(to: restore) }
+        MouseCursor.show()
+        return true
     }
+
+    private struct WindowInfo {
+        let bounds: NSDictionary
+        let ownerPID: pid_t?
+    }
+
+    private static func windowInfo(for id: CGWindowID) -> WindowInfo? {
+        guard let rows = CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]],
+              let row = rows.first,
+              let bounds = row[kCGWindowBounds as String] as? NSDictionary
+        else { return nil }
+        let ownerPID = (row[kCGWindowOwnerPID as String] as? NSNumber).map { pid_t($0.int32Value) }
+        return WindowInfo(bounds: bounds, ownerPID: ownerPID)
+    }
+
+    private static func event(
+        _ type: CGEventType,
+        at location: CGPoint,
+        windowID: CGWindowID,
+        ownerPID: pid_t,
+        source: CGEventSource
+    ) -> CGEvent? {
+        guard let event = CGEvent(
+            mouseEventSource: source,
+            mouseType: type,
+            mouseCursorPosition: location,
+            mouseButton: .left
+        ) else { return nil }
+        event.flags = []
+        event.setIntegerValueField(.eventTargetUnixProcessID, value: Int64(ownerPID))
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: Int64(windowID))
+        event.setIntegerValueField(
+            .mouseEventWindowUnderMousePointerThatCanHandleThisEvent,
+            value: Int64(windowID)
+        )
+        event.setIntegerValueField(windowIDField, value: Int64(windowID))
+        event.setIntegerValueField(.mouseEventClickState, value: 1)
+        return event
+    }
+}
+
+private extension CGRect {
+    var center: CGPoint { CGPoint(x: midX, y: midY) }
 }

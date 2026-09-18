@@ -290,9 +290,10 @@ final class StatusBarController: NSObject {
     }
 
     private func activateHiddenItem(_ item: MenuBarItemDescriptor) async {
-        // A panel button starts a short, serialized accessibility activation.
-        // The item must stay in the hidden section for the whole operation;
-        // revealing it and dragging it back is both visible and unreliable.
+        // A panel button starts a serialized reveal/click/rehide transaction.
+        // The item is moved directly from its off-screen window frame; we do
+        // not expand the whole hidden section, so neighbouring icons never
+        // flash back into the first row.
         guard !isActivatingItem else { return }
         isActivatingItem = true
         defer {
@@ -304,11 +305,53 @@ final class StatusBarController: NSObject {
         hoverOpenTask = nil
         hoverCloseTask?.cancel()
         hoverCloseTask = nil
-        let activated = MenuBarItemActivator.activate(item)
-        if !activated {
+        let moved = await hidingEngine.moveToVisibleSection(item)
+        guard moved else {
             model.updateHidingState(
                 applied: true,
-                message: "无法直接激活该菜单栏项目，请确认辅助功能权限并重新扫描"
+                message: "暂时无法显示该菜单栏项目，请稍后重试"
+            )
+            hidingEngine.collapse()
+            return
+        }
+
+        guard await waitUnlessCancelled(.milliseconds(160)) else {
+            hidingEngine.collapse()
+            return
+        }
+
+        guard MenuBarItemActivator.activate(item) else {
+            model.updateHidingState(applied: true, message: "菜单栏项目暂时无法打开，请稍后重试")
+            hidingEngine.collapse()
+            return
+        }
+
+        // Keep the native menu alive briefly, then return only the clicked
+        // item to the hidden section. Other managed items are never exposed.
+        guard await waitUnlessCancelled(.milliseconds(1_000)) else {
+            hidingEngine.collapse()
+            return
+        }
+
+        var restored = false
+        for _ in 0..<3 {
+            if await hidingEngine.moveToHiddenSection(item) {
+                hidingEngine.collapse()
+                try? await Task.sleep(for: .milliseconds(180))
+                let remainsVisible = MenuBarItemDiscovery.discover(on: currentScreenFrame)
+                    .contains { $0.persistentIdentifier == item.persistentIdentifier }
+                if !remainsVisible {
+                    restored = true
+                    break
+                }
+            }
+            hidingEngine.collapse()
+            guard await waitUnlessCancelled(.milliseconds(180)) else { break }
+        }
+        if !restored {
+            model.updateHidingState(
+                applied: true,
+                message: "项目已打开，但暂时无法自动收回；请重新扫描"
             )
         }
     }

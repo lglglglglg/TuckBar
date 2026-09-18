@@ -48,11 +48,14 @@ final class MenuBarHidingEngine {
     }
 
     func moveToHiddenSection(_ item: MenuBarItemDescriptor) async -> Bool {
-        guard let hiddenFrame = boundaryFrame(.hidden, near: item.frame),
-              let alwaysHiddenFrame = boundaryFrame(.alwaysHidden, near: item.frame)
+        let current = currentItem(item)
+        guard let hiddenFrame = boundaryFrame(.hidden, near: current.frame),
+              let alwaysHiddenFrame = boundaryFrame(.alwaysHidden, near: current.frame)
         else { return false }
 
-        if item.frame.midX < hiddenFrame.midX, item.frame.midX > alwaysHiddenFrame.midX {
+        if isOnScreen(current.frame),
+           current.frame.midX < hiddenFrame.midX,
+           current.frame.midX > alwaysHiddenFrame.midX {
             return true
         }
 
@@ -60,7 +63,7 @@ final class MenuBarHidingEngine {
             x: hiddenFrame.minX - 1,
             y: hiddenFrame.midY
         )
-        guard await commandDrag(from: item.frame.center, to: destination),
+        guard await commandDrag(from: current.frame.center, to: destination, windowID: current.id),
               let updatedFrame = windowFrame(id: item.id),
               let updatedHiddenFrame = boundaryFrame(.hidden, near: updatedFrame),
               let updatedAlwaysHiddenFrame = boundaryFrame(.alwaysHidden, near: updatedFrame)
@@ -70,14 +73,15 @@ final class MenuBarHidingEngine {
     }
 
     func moveToAlwaysHiddenSection(_ item: MenuBarItemDescriptor) async -> Bool {
-        guard let initialBoundaryFrame = boundaryFrame(.alwaysHidden, near: item.frame) else { return false }
-        if item.frame.midX < initialBoundaryFrame.midX { return true }
+        let current = currentItem(item)
+        guard let initialBoundaryFrame = boundaryFrame(.alwaysHidden, near: current.frame) else { return false }
+        if isOnScreen(current.frame), current.frame.midX < initialBoundaryFrame.midX { return true }
 
         let destination = CGPoint(
             x: initialBoundaryFrame.minX - 1,
             y: initialBoundaryFrame.midY
         )
-        guard await commandDrag(from: item.frame.center, to: destination),
+        guard await commandDrag(from: current.frame.center, to: destination, windowID: current.id),
               let updatedFrame = windowFrame(id: item.id),
               let updatedBoundary = boundaryFrame(.alwaysHidden, near: updatedFrame)
         else { return false }
@@ -85,14 +89,15 @@ final class MenuBarHidingEngine {
     }
 
     func moveToVisibleSection(_ item: MenuBarItemDescriptor) async -> Bool {
-        guard let initialBoundaryFrame = boundaryFrame(.hidden, near: item.frame) else { return false }
-        if item.frame.midX > initialBoundaryFrame.midX { return true }
+        let current = currentItem(item)
+        guard let initialBoundaryFrame = boundaryFrame(.hidden, near: current.frame) else { return false }
+        if isOnScreen(current.frame), current.frame.midX > initialBoundaryFrame.midX { return true }
 
         let destination = CGPoint(
             x: initialBoundaryFrame.maxX + 1,
             y: initialBoundaryFrame.midY
         )
-        guard await commandDrag(from: item.frame.center, to: destination),
+        guard await commandDrag(from: current.frame.center, to: destination, windowID: current.id),
               let updatedFrame = windowFrame(id: item.id),
               let updatedBoundary = boundaryFrame(.hidden, near: updatedFrame)
         else { return false }
@@ -115,9 +120,12 @@ final class MenuBarHidingEngine {
             guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
             return CGDisplayBounds(number.uint32Value)
         }
-        guard let screenFrame = displayFrames.first(where: {
+        let screenFrame = displayFrames.first(where: {
             $0.contains(CGPoint(x: itemFrame.midX, y: itemFrame.midY))
-        }) else { return nil }
+        }) ?? displayFrames.first(where: {
+            abs($0.minY - itemFrame.minY) <= 50
+        })
+        guard let screenFrame else { return nil }
 
         let frames = ownStatusProxyFrames().filter {
             abs($0.midY - itemFrame.midY) < 8
@@ -171,56 +179,114 @@ final class MenuBarHidingEngine {
         return CGRect(dictionaryRepresentation: boundsValue as! CFDictionary)
     }
 
-    private func commandDrag(from start: CGPoint, to end: CGPoint) async -> Bool {
-        let originalPointer = CGEvent(source: nil)?.location
-        // Command-dragging a status item with synthetic events can otherwise
-        // leave the user's pointer at the off-screen boundary. Keep the
-        // hardware cursor independent during the short automation gesture and
-        // restore it without generating a hover event afterwards.
-        CGAssociateMouseAndMouseCursorPosition(0)
-        defer {
-            CGAssociateMouseAndMouseCursorPosition(1)
-            if let originalPointer {
-                CGWarpMouseCursorPosition(originalPointer)
+    private func currentItem(_ item: MenuBarItemDescriptor) -> MenuBarItemDescriptor {
+        guard let frame = windowFrame(id: item.id) else { return item }
+        return MenuBarItemDescriptor(
+            id: item.id,
+            identifier: item.identifier,
+            occurrence: item.occurrence,
+            frame: frame,
+            snapshot: item.snapshot
+        )
+    }
+
+    private func isOnScreen(_ frame: CGRect) -> Bool {
+        NSScreen.screens.contains { screen in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+            return CGDisplayBounds(number.uint32Value).intersects(frame)
+        }
+    }
+
+    private func commandDrag(from start: CGPoint, to end: CGPoint, windowID: CGWindowID) async -> Bool {
+        let originalPointer = MouseCursor.location
+        guard let ownerPID = windowOwnerPID(windowID),
+              let source = CGEventSource(stateID: .hidSystemState)
+        else { return false }
+
+        let permit: CGEventFilterMask = [
+            .permitLocalMouseEvents,
+            .permitLocalKeyboardEvents,
+            .permitSystemDefinedEvents
+        ]
+        source.setLocalEventsFilterDuringSuppressionState(
+            permit,
+            state: .eventSuppressionStateRemoteMouseDrag
+        )
+        source.setLocalEventsFilterDuringSuppressionState(
+            permit,
+            state: .eventSuppressionStateSuppressionInterval
+        )
+        source.localEventsSuppressionInterval = 0
+
+        let midpoint = CGPoint(x: (start.x + end.x) / 2, y: start.y)
+        guard let down = dragEvent(.leftMouseDown, at: start, windowID: windowID, ownerPID: ownerPID, source: source),
+              let drag1 = dragEvent(.leftMouseDragged, at: midpoint, windowID: windowID, ownerPID: ownerPID, source: source),
+              let drag2 = dragEvent(.leftMouseDragged, at: end, windowID: windowID, ownerPID: ownerPID, source: source),
+              let up = dragEvent(.leftMouseUp, at: end, windowID: windowID, ownerPID: ownerPID, source: source)
+        else { return false }
+
+        // The window server follows the live cursor during a Command-drag.
+        // Hide it for the ~160ms gesture and only warp it back after the item
+        // frame has settled. Warping immediately cancels the move.
+        MouseCursor.prepareBackgroundControl()
+        MouseCursor.hide()
+        down.post(tap: .cgSessionEventTap)
+        usleep(50_000)
+        drag1.post(tap: .cgSessionEventTap)
+        usleep(50_000)
+        drag2.post(tap: .cgSessionEventTap)
+        usleep(60_000)
+        up.post(tap: .cgSessionEventTap)
+
+        var lastMidX: CGFloat?
+        var movedAndStable = false
+        for _ in 0..<16 {
+            try? await Task.sleep(for: .milliseconds(50))
+            guard let current = windowFrame(id: windowID) else { continue }
+            let moved = abs(current.midX - start.x) > 20
+            let stable = lastMidX.map { abs(current.midX - $0) < 1 } ?? false
+            lastMidX = current.midX
+            if moved && stable {
+                movedAndStable = true
+                break
             }
         }
 
-        guard let source = CGEventSource(stateID: .hidSystemState),
-              let mouseDown = CGEvent(
-                mouseEventSource: source,
-                mouseType: .leftMouseDown,
-                mouseCursorPosition: start,
-                mouseButton: .left
-              )
-        else { return false }
+        if let originalPointer { MouseCursor.warp(to: originalPointer) }
+        MouseCursor.show()
+        return movedAndStable
+    }
 
-        mouseDown.flags = .maskCommand
-        mouseDown.post(tap: .cghidEventTap)
+    private func windowOwnerPID(_ id: CGWindowID) -> pid_t? {
+        guard let rows = CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]],
+              let row = rows.first,
+              let number = row[kCGWindowOwnerPID as String] as? NSNumber
+        else { return nil }
+        return pid_t(number.int32Value)
+    }
 
-        // One destination event is enough for the status-bar Command-drag
-        // gesture. Interpolating ten points makes the operation look like a
-        // person is drawing the icon across the menu bar and gives macOS ten
-        // chances to relayout/reorder neighbouring items.
-        guard let dragged = CGEvent(
+    private func dragEvent(
+        _ type: CGEventType,
+        at location: CGPoint,
+        windowID: CGWindowID,
+        ownerPID: pid_t,
+        source: CGEventSource
+    ) -> CGEvent? {
+        guard let event = CGEvent(
             mouseEventSource: source,
-            mouseType: .leftMouseDragged,
-            mouseCursorPosition: end,
+            mouseType: type,
+            mouseCursorPosition: location,
             mouseButton: .left
-        ) else { return false }
-        dragged.flags = .maskCommand
-        dragged.post(tap: .cghidEventTap)
-        try? await Task.sleep(for: .milliseconds(40))
-
-        guard let mouseUp = CGEvent(
-            mouseEventSource: source,
-            mouseType: .leftMouseUp,
-            mouseCursorPosition: end,
-            mouseButton: .left
-        ) else { return false }
-        mouseUp.flags = .maskCommand
-        mouseUp.post(tap: .cghidEventTap)
-        try? await Task.sleep(for: .milliseconds(180))
-        return true
+        ) else { return nil }
+        event.flags = .maskCommand
+        event.setIntegerValueField(.eventTargetUnixProcessID, value: Int64(ownerPID))
+        event.setIntegerValueField(.mouseEventWindowUnderMousePointer, value: Int64(windowID))
+        event.setIntegerValueField(
+            .mouseEventWindowUnderMousePointerThatCanHandleThisEvent,
+            value: Int64(windowID)
+        )
+        event.setIntegerValueField(CGEventField(rawValue: 0x33)!, value: Int64(windowID))
+        return event
     }
 }
 
