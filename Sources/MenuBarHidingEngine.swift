@@ -53,7 +53,7 @@ final class MenuBarHidingEngine {
               let alwaysHiddenFrame = boundaryFrame(.alwaysHidden, near: current.frame)
         else { return false }
 
-        if isOnScreen(current.frame),
+        if isWindowOnScreen(current.id),
            current.frame.midX < hiddenFrame.midX,
            current.frame.midX > alwaysHiddenFrame.midX {
             return true
@@ -75,7 +75,7 @@ final class MenuBarHidingEngine {
     func moveToAlwaysHiddenSection(_ item: MenuBarItemDescriptor) async -> Bool {
         let current = currentItem(item)
         guard let initialBoundaryFrame = boundaryFrame(.alwaysHidden, near: current.frame) else { return false }
-        if isOnScreen(current.frame), current.frame.midX < initialBoundaryFrame.midX { return true }
+        if isWindowOnScreen(current.id), current.frame.midX < initialBoundaryFrame.midX { return true }
 
         let destination = CGPoint(
             x: initialBoundaryFrame.minX - 1,
@@ -90,18 +90,21 @@ final class MenuBarHidingEngine {
 
     func moveToVisibleSection(_ item: MenuBarItemDescriptor) async -> Bool {
         let current = currentItem(item)
-        guard let initialBoundaryFrame = boundaryFrame(.hidden, near: current.frame) else { return false }
-        if isOnScreen(current.frame), current.frame.midX > initialBoundaryFrame.midX { return true }
+        guard let toggleFrame = toggleProxyFrame(near: current.frame) else { return false }
+        // A window can still have a screen-intersecting frame while macOS has
+        // placed it behind the notch. Ask WindowServer whether this exact
+        // window is currently on-screen instead of inferring visibility from
+        // geometry alone.
+        if isWindowOnScreen(current.id) { return true }
 
         let destination = CGPoint(
-            x: initialBoundaryFrame.maxX + 1,
-            y: initialBoundaryFrame.midY
+            x: toggleFrame.minX - max(current.frame.width, 24) / 2 - 2,
+            y: toggleFrame.midY
         )
         guard await commandDrag(from: current.frame.center, to: destination, windowID: current.id),
-              let updatedFrame = windowFrame(id: item.id),
-              let updatedBoundary = boundaryFrame(.hidden, near: updatedFrame)
+              let updatedFrame = windowFrame(id: item.id)
         else { return false }
-        return updatedFrame.midX > updatedBoundary.midX
+        return isWindowOnScreen(item.id) && updatedFrame.midX < toggleFrame.minX
     }
 
     private func configureBoundary(_ item: NSStatusItem, autosaveName: String) {
@@ -153,6 +156,23 @@ final class MenuBarHidingEngine {
             .min(by: { abs($0.maxX - hiddenFrame.minX) < abs($1.maxX - hiddenFrame.minX) })
     }
 
+    private func toggleProxyFrame(near itemFrame: CGRect) -> CGRect? {
+        let displayFrames = NSScreen.screens.compactMap { screen -> CGRect? in
+            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
+            return CGDisplayBounds(number.uint32Value)
+        }
+        let screenFrame = displayFrames.first(where: {
+            abs($0.minY - itemFrame.minY) <= 50
+        })
+        return ownStatusProxyFrames()
+            .filter { frame in
+                frame.width >= 24 && frame.width <= 80
+                    && (screenFrame == nil || screenFrame!.contains(CGPoint(x: frame.midX, y: frame.midY)))
+                    && abs(frame.midY - itemFrame.midY) < 8
+            }
+            .min(by: { abs($0.midX - itemFrame.midX) < abs($1.midX - itemFrame.midX) })
+    }
+
     /// On macOS 26, Control Center hosts the visible proxy windows for third-
     /// party status items. `button.window` points at an internal offscreen
     /// window, so geometry must be resolved through the autosaved proxy name.
@@ -190,10 +210,15 @@ final class MenuBarHidingEngine {
         )
     }
 
-    private func isOnScreen(_ frame: CGRect) -> Bool {
-        NSScreen.screens.contains { screen in
-            guard let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
-            return CGDisplayBounds(number.uint32Value).intersects(frame)
+    private func isWindowOnScreen(_ id: CGWindowID) -> Bool {
+        guard let rows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]
+        ] else { return false }
+        return rows.contains { row in
+            guard let number = row[kCGWindowNumber as String] as? NSNumber else { return false }
+            return CGWindowID(number.uint32Value) == id
         }
     }
 
