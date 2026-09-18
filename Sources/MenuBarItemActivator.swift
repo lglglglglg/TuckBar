@@ -28,7 +28,8 @@ enum MenuBarItemActivator {
         // such as Lloyd forward a real click to the revealed window instead.
         // The window-id fields are essential: a bare CGEvent is accepted but
         // is delivered to no menu, which was the failure in v0.9.4/0.9.5.
-        guard let info = windowInfo(for: item.id),
+        guard isWindowOnScreen(item.id),
+              let info = windowInfo(for: item.id),
               let frame = CGRect(dictionaryRepresentation: info.bounds as CFDictionary),
               let ownerPID = info.ownerPID,
               ownerPID > 0,
@@ -56,12 +57,12 @@ enum MenuBarItemActivator {
               let up = event(.leftMouseUp, at: location, windowID: item.id, ownerPID: ownerPID, source: source)
         else { return false }
 
-        MouseCursor.prepareBackgroundControl()
-        MouseCursor.hide()
-        down.post(tap: .cgSessionEventTap)
-        usleep(40_000)
-        up.post(tap: .cgSessionEventTap)
-        usleep(80_000)
+        let popupBefore = popupWindowIDs(ownerPID: ownerPID)
+        postClick(down: down, up: up)
+        if popupWindowIDs(ownerPID: ownerPID).subtracting(popupBefore).isEmpty {
+            usleep(120_000)
+            postClick(down: down, up: up)
+        }
         if let restore { MouseCursor.warp(to: restore) }
         MouseCursor.show()
         return true
@@ -104,6 +105,42 @@ enum MenuBarItemActivator {
         event.setIntegerValueField(windowIDField, value: Int64(windowID))
         event.setIntegerValueField(.mouseEventClickState, value: 1)
         return event
+    }
+
+    private static func postClick(down: CGEvent, up: CGEvent) {
+        MouseCursor.prepareBackgroundControl()
+        MouseCursor.hide()
+        down.post(tap: .cgSessionEventTap)
+        usleep(40_000)
+        up.post(tap: .cgSessionEventTap)
+        usleep(80_000)
+    }
+
+    private static func isWindowOnScreen(_ id: CGWindowID) -> Bool {
+        guard let rows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] else { return false }
+        return rows.contains { row in
+            guard let number = row[kCGWindowNumber as String] as? NSNumber else { return false }
+            return CGWindowID(number.uint32Value) == id
+        }
+    }
+
+    private static func popupWindowIDs(ownerPID: pid_t) -> Set<CGWindowID> {
+        let popupLevel = Int(CGWindowLevelForKey(.popUpMenuWindow))
+        guard let rows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] else { return [] }
+        return Set(rows.compactMap { row in
+            guard row[kCGWindowLayer as String] as? Int == popupLevel,
+                  let pidNumber = row[kCGWindowOwnerPID as String] as? NSNumber,
+                  pid_t(pidNumber.int32Value) == ownerPID,
+                  let number = row[kCGWindowNumber as String] as? NSNumber
+            else { return nil }
+            return CGWindowID(number.uint32Value)
+        })
     }
 }
 
