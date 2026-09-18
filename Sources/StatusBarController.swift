@@ -12,7 +12,9 @@ final class StatusBarController: NSObject {
     private var hoverCloseTask: Task<Void, Never>?
     private var panelPresentationTask: Task<Void, Never>?
     private var panelPresentationID: UUID?
+    private var layoutRecoveryTask: Task<Void, Never>?
     private var isApplyingLayout = false
+    private var isRecoveringLayout = false
 
     private lazy var toggleItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
     private lazy var hidingEngine = MenuBarHidingEngine(statusBar: statusBar)
@@ -27,6 +29,7 @@ final class StatusBarController: NSObject {
         // moved to its left can then be displaced without hiding the controller.
         _ = hidingEngine
         observeDisplayChanges()
+        observeWorkspaceWakeEvents()
         observePointerForHoverTrigger()
         refreshMenuBarItems()
         restoreSavedLayoutAfterLaunch()
@@ -34,6 +37,7 @@ final class StatusBarController: NSObject {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     @objc func handleToggleItemAction() {
@@ -343,6 +347,7 @@ final class StatusBarController: NSObject {
     }
 
     private func pointerMoved(to point: CGPoint) {
+        guard !isRecoveringLayout else { return }
         let triggerFrame = toggleItem.button?.window?.frame.insetBy(dx: -5, dy: -4)
         let isOverTrigger = triggerFrame?.contains(point) == true
         let isOverPanel = aggregatePanel.contains(point)
@@ -392,7 +397,54 @@ final class StatusBarController: NSObject {
         )
     }
 
-    @objc private func displayConfigurationDidChange() { revealAllItems() }
+    @objc private func displayConfigurationDidChange() {
+        scheduleLayoutRecovery(after: .milliseconds(700))
+    }
+
+    private func observeWorkspaceWakeEvents() {
+        let center = NSWorkspace.shared.notificationCenter
+        center.addObserver(
+            self,
+            selector: #selector(workspaceDidWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(workspaceDidWake),
+            name: NSWorkspace.screensDidWakeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func workspaceDidWake() {
+        // The status-item server can restore items and discard our boundary
+        // lengths while the Mac is locked. Re-apply only after it settles.
+        scheduleLayoutRecovery(after: .milliseconds(900))
+    }
+
+    private func scheduleLayoutRecovery(after delay: Duration) {
+        layoutRecoveryTask?.cancel()
+        hoverOpenTask?.cancel()
+        hoverOpenTask = nil
+        hoverCloseTask?.cancel()
+        hoverCloseTask = nil
+        panelPresentationTask?.cancel()
+        panelPresentationTask = nil
+        panelPresentationID = nil
+        aggregatePanel.hide()
+        isRecoveringLayout = true
+        hidingEngine.expand()
+
+        layoutRecoveryTask = Task { [weak self] in
+            guard let self else { return }
+            guard await self.waitUnlessCancelled(delay) else { return }
+            await self.applyHiddenItemsNow()
+            guard !Task.isCancelled else { return }
+            self.isRecoveringLayout = false
+            self.layoutRecoveryTask = nil
+        }
+    }
 
     private func showContextMenu() {
         let menu = NSMenu()
