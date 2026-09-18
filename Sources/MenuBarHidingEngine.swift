@@ -172,6 +172,19 @@ final class MenuBarHidingEngine {
     }
 
     private func commandDrag(from start: CGPoint, to end: CGPoint) async -> Bool {
+        let originalPointer = CGEvent(source: nil)?.location
+        // Command-dragging a status item with synthetic events can otherwise
+        // leave the user's pointer at the off-screen boundary. Keep the
+        // hardware cursor independent during the short automation gesture and
+        // restore it without generating a hover event afterwards.
+        CGAssociateMouseAndMouseCursorPosition(0)
+        defer {
+            CGAssociateMouseAndMouseCursorPosition(1)
+            if let originalPointer {
+                CGWarpMouseCursorPosition(originalPointer)
+            }
+        }
+
         guard let source = CGEventSource(stateID: .hidSystemState),
               let mouseDown = CGEvent(
                 mouseEventSource: source,

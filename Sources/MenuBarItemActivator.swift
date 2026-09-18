@@ -22,6 +22,7 @@ enum MenuBarItemActivator {
         }
 
         let target = CGPoint(x: item.frame.midX, y: item.frame.midY)
+        let original = CGEvent(source: nil)?.location
         let source = CGEventSource(stateID: .hidSystemState)
 
         guard
@@ -31,6 +32,13 @@ enum MenuBarItemActivator {
 
         mouseDown.post(tap: .cghidEventTap)
         mouseUp.post(tap: .cghidEventTap)
+
+        // Restore the real pointer without injecting a mouseMoved event into
+        // AppKit's hover monitors. The click is still delivered at `target`,
+        // while the user keeps the pointer over the panel that they clicked.
+        if let original {
+            CGWarpMouseCursorPosition(original)
+        }
 
         // The event location is enough to activate a status item. Do not post
         // a synthetic mouseMoved event afterwards: it changes the user's
