@@ -410,15 +410,47 @@ final class StatusBarController: NSObject {
             name: NSWorkspace.screensDidWakeNotification,
             object: nil
         )
+        center.addObserver(
+            self,
+            selector: #selector(workspaceWillSleep),
+            name: NSWorkspace.willSleepNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(workspaceWillSleep),
+            name: NSWorkspace.screensDidSleepNotification,
+            object: nil
+        )
     }
 
     @objc private func workspaceDidWake() {
         // The status-item server can restore items and discard our boundary
-        // lengths while the Mac is locked. Re-apply only after it settles.
-        scheduleLayoutRecovery(after: .milliseconds(900))
+        // lengths while the Mac is locked. Re-assert the collapsed lengths
+        // immediately, then verify them after the server settles. A full
+        // drag-based reapply would intentionally expose every original item.
+        scheduleLayoutRecovery(after: .milliseconds(900), reapplyLayout: false)
     }
 
-    private func scheduleLayoutRecovery(after delay: Duration) {
+    @objc private func workspaceWillSleep() {
+        layoutRecoveryTask?.cancel()
+        layoutRecoveryTask = nil
+        hoverOpenTask?.cancel()
+        hoverOpenTask = nil
+        hoverCloseTask?.cancel()
+        hoverCloseTask = nil
+        panelPresentationTask?.cancel()
+        panelPresentationTask = nil
+        panelPresentationID = nil
+        aggregatePanel.hide()
+        hidingEngine.collapse()
+        isRecoveringLayout = false
+    }
+
+    private func scheduleLayoutRecovery(
+        after delay: Duration,
+        reapplyLayout: Bool = true
+    ) {
         layoutRecoveryTask?.cancel()
         hoverOpenTask?.cancel()
         hoverOpenTask = nil
@@ -429,12 +461,23 @@ final class StatusBarController: NSObject {
         panelPresentationID = nil
         aggregatePanel.hide()
         isRecoveringLayout = true
-        hidingEngine.expand()
+        hidingEngine.collapse()
 
         layoutRecoveryTask = Task { [weak self] in
             guard let self else { return }
             guard await self.waitUnlessCancelled(delay) else { return }
-            await self.applyHiddenItemsNow()
+            if reapplyLayout {
+                await self.applyHiddenItemsNow()
+            } else {
+                self.refreshMenuBarItems()
+                self.hidingEngine.collapse()
+                if !self.model.managedItems.isEmpty {
+                    self.model.updateHidingState(
+                        applied: true,
+                        message: "唤醒后已恢复收起状态"
+                    )
+                }
+            }
             guard !Task.isCancelled else { return }
             self.isRecoveringLayout = false
             self.layoutRecoveryTask = nil

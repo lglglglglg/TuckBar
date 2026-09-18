@@ -256,7 +256,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -264,7 +264,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;
@@ -340,7 +340,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Config/Info.plist;
@@ -348,7 +348,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.9.0;
+				MARKETING_VERSION = 0.9.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.hanshijiu.MenuBarOrganizer;
 				PRODUCT_NAME = TuckBar;
 				SDKROOT = macosx;
