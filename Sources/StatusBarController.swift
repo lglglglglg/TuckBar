@@ -326,9 +326,10 @@ final class StatusBarController: NSObject {
             return
         }
 
-        // Keep the native menu alive briefly, then return only the clicked
-        // item to the hidden section. Other managed items are never exposed.
-        guard await waitUnlessCancelled(.milliseconds(1_000)) else {
+        // Keep the native menu alive while it is actually open. A fixed
+        // one-second delay races the host menu: it can be moved off-screen
+        // just after opening, which looks like a dead click to the user.
+        guard await MenuBarItemActivator.waitForMenuDismissal(item) else {
             hidingEngine.collapse()
             return
         }

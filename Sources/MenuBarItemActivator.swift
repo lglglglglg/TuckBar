@@ -78,6 +78,33 @@ enum MenuBarItemActivator {
         return true
     }
 
+    /// Wait until the host application's native menu has closed before the
+    /// caller moves the status item back to the hidden section. Some menu-bar
+    /// apps do not create a popup at all; in that case return after a short
+    /// grace period so launching those apps is not delayed.
+    static func waitForMenuDismissal(_ item: MenuBarItemDescriptor) async -> Bool {
+        guard let info = windowInfo(for: item.id),
+              let ownerPID = info.ownerPID,
+              ownerPID > 0 else {
+            return true
+        }
+
+        var popupWasSeen = false
+        for tick in 0..<600 { // 30 seconds at 50 ms per tick
+            if Task.isCancelled { return false }
+            let popups = popupWindowIDs(ownerPID: ownerPID)
+            if !popups.isEmpty {
+                popupWasSeen = true
+            } else if popupWasSeen {
+                return true
+            } else if tick >= 8 { // no native menu: app-style item
+                return true
+            }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        return true
+    }
+
     private struct WindowInfo {
         let bounds: NSDictionary
         let ownerPID: pid_t?
