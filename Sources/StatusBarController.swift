@@ -218,28 +218,14 @@ final class StatusBarController: NSObject {
             showSettings()
             return
         }
-        var selectedItems = model.hiddenItems
+        let selectedItems = model.hiddenItems
 
-        // Capturing is only needed until every selected item has a cached
-        // original image. Subsequent opens stay collapsed and appear instantly.
-        let needsCapture = model.hasScreenRecordingPermission
-            && !aggregatePanel.hasCachedSnapshots(for: selectedItems)
-        if needsCapture {
-            hidingEngine.expandHiddenSection()
-            guard await waitUnlessCancelled(.milliseconds(280)) else {
-                restoreCollapsedLayoutIfNeeded()
-                return
-            }
-            refreshMenuBarItems()
-            selectedItems = model.hiddenItems
-            await aggregatePanel.preloadSnapshots(for: selectedItems)
-        }
-
-        // The source items must be hidden before the aggregate panel appears.
-        // Showing both at once creates a duplicate row and exposes internal
-        // capture work to the user.
+        // Snapshots are captured while applying the hidden layout, before the
+        // source items are moved off-screen. Opening the panel must never
+        // expand the hidden section just to capture an icon: that creates a
+        // visible original-row flash before the aggregate panel appears.
         restoreCollapsedLayoutIfNeeded()
-        guard await waitUnlessCancelled(.milliseconds(80)) else { return }
+        guard !Task.isCancelled else { return }
 
         let cachedCount = aggregatePanel.cachedSnapshotCount(for: selectedItems)
         guard selectedItems.isEmpty || cachedCount > 0 else {
