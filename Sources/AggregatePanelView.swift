@@ -3,6 +3,7 @@ import SwiftUI
 struct AggregatePanelView: View {
     let items: [MenuBarItemDescriptor]
     let activate: (MenuBarItemDescriptor) -> Void
+    var onSetPlacement: ((MenuBarItemDescriptor, MenuBarItemPlacement) -> Void)? = nil
     var onOpenSettings: (() -> Void)? = nil
 
     var body: some View {
@@ -28,9 +29,13 @@ struct AggregatePanelView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
                         ForEach(items) { item in
-                            MenuBarItemButton(item: item) {
-                                activate(item)
-                            }
+                            MenuBarItemButton(
+                                item: item,
+                                action: { activate(item) },
+                                onSetPlacement: { placement in
+                                    onSetPlacement?(item, placement)
+                                }
+                            )
                         }
                     }
                     .padding(.horizontal, 6)
@@ -80,6 +85,7 @@ struct AggregatePanelView: View {
 private struct MenuBarItemButton: View {
     let item: MenuBarItemDescriptor
     let action: () -> Void
+    var onSetPlacement: ((MenuBarItemPlacement) -> Void)? = nil
     @State private var isHovering = false
 
     var body: some View {
@@ -103,6 +109,23 @@ private struct MenuBarItemButton: View {
         }
         .buttonStyle(.plain)
         .help(item.displayName)
+        .contextMenu {
+            Text(item.displayName)
+                .font(.headline)
+            Divider()
+            Button("常显此应用") {
+                onSetPlacement?(.visible)
+            }
+            Button("始终隐藏此应用") {
+                onSetPlacement?(.alwaysHidden)
+            }
+            if let appURL = item.appURL {
+                Divider()
+                Button("在访达中显示") {
+                    NSWorkspace.shared.activateFileViewerSelecting([appURL])
+                }
+            }
+        }
         .onHover { isHovering = $0 }
     }
 

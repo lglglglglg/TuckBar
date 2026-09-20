@@ -32,15 +32,18 @@ final class AggregatePanelController {
     }
 
     private var onOpenSettings: (() -> Void)?
+    private var onSetPlacement: ((MenuBarItemDescriptor, MenuBarItemPlacement) -> Void)?
 
     func refreshAndShow(
         items selectedItems: [MenuBarItemDescriptor],
         anchorWindow: NSWindow?,
         onOpenSettings: (() -> Void)? = nil,
+        onSetPlacement: ((MenuBarItemDescriptor, MenuBarItemPlacement) -> Void)? = nil,
         activate: @escaping (MenuBarItemDescriptor) -> Void
     ) {
         self.activateItem = activate
         self.onOpenSettings = onOpenSettings
+        self.onSetPlacement = onSetPlacement
         items = selectedItems.compactMap { item in
             guard let snapshot = snapshotCache[item.persistentIdentifier] else { return nil }
             var cachedItem = item
@@ -65,6 +68,9 @@ final class AggregatePanelController {
             items: items,
             activate: { [weak self] item in
                 self?.activate(item)
+            },
+            onSetPlacement: { [weak self] item, placement in
+                self?.onSetPlacement?(item, placement)
             },
             onOpenSettings: { [weak self] in
                 self?.hide()
