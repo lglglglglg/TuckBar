@@ -68,6 +68,12 @@ final class AppModel: ObservableObject {
     @Published var openOnHover: Bool {
         didSet { UserDefaults.standard.set(openOnHover, forKey: Self.openOnHoverDefaultsKey) }
     }
+    @Published var triggerOnScroll: Bool {
+        didSet { UserDefaults.standard.set(triggerOnScroll, forKey: Self.triggerOnScrollDefaultsKey) }
+    }
+    @Published var enableGlobalHotkey: Bool {
+        didSet { UserDefaults.standard.set(enableGlobalHotkey, forKey: Self.enableGlobalHotkeyDefaultsKey) }
+    }
     @Published var displayMode: MenuBarDisplayMode {
         didSet { UserDefaults.standard.set(displayMode.rawValue, forKey: Self.displayModeDefaultsKey) }
     }
@@ -105,6 +111,8 @@ final class AppModel: ObservableObject {
     private static let hiddenItemsDefaultsKey = "HiddenMenuBarItemIdentifiers"
     private static let alwaysHiddenItemsDefaultsKey = "AlwaysHiddenMenuBarItemIdentifiers"
     private static let openOnHoverDefaultsKey = "OpenAggregateBarOnHover"
+    private static let triggerOnScrollDefaultsKey = "TriggerOnScroll"
+    private static let enableGlobalHotkeyDefaultsKey = "EnableGlobalHotkey"
     private static let displayModeDefaultsKey = "MenuBarDisplayMode"
     private static let autoCollapseDelayDefaultsKey = "AutoCollapseDelaySeconds"
     private static let iconStyleDefaultsKey = "MenuBarIconStyle"
@@ -119,6 +127,8 @@ final class AppModel: ObservableObject {
             UserDefaults.standard.stringArray(forKey: Self.alwaysHiddenItemsDefaultsKey) ?? []
         )
         openOnHover = UserDefaults.standard.object(forKey: Self.openOnHoverDefaultsKey) as? Bool ?? true
+        triggerOnScroll = UserDefaults.standard.object(forKey: Self.triggerOnScrollDefaultsKey) as? Bool ?? true
+        enableGlobalHotkey = UserDefaults.standard.object(forKey: Self.enableGlobalHotkeyDefaultsKey) as? Bool ?? true
         let savedMode = UserDefaults.standard.string(forKey: Self.displayModeDefaultsKey) ?? MenuBarDisplayMode.menuBar.rawValue
         displayMode = MenuBarDisplayMode(rawValue: savedMode) ?? .menuBar
         autoCollapseDelay = UserDefaults.standard.object(forKey: Self.autoCollapseDelayDefaultsKey) as? Double ?? 8.0
@@ -200,6 +210,24 @@ final class AppModel: ObservableObject {
         case .alwaysHidden:
             explicitVisibleIdentifiers.remove(item.persistentIdentifier)
             alwaysHiddenItemIdentifiers.insert(item.persistentIdentifier)
+        }
+        persistPlacements()
+    }
+
+    func setAllPlacement(_ placement: MenuBarItemPlacement, for items: [MenuBarItemDescriptor]) {
+        for item in items {
+            remove(item, from: &hiddenItemIdentifiers)
+            remove(item, from: &alwaysHiddenItemIdentifiers)
+            switch placement {
+            case .visible:
+                explicitVisibleIdentifiers.insert(item.persistentIdentifier)
+            case .hidden:
+                explicitVisibleIdentifiers.remove(item.persistentIdentifier)
+                hiddenItemIdentifiers.insert(item.persistentIdentifier)
+            case .alwaysHidden:
+                explicitVisibleIdentifiers.remove(item.persistentIdentifier)
+                alwaysHiddenItemIdentifiers.insert(item.persistentIdentifier)
+            }
         }
         persistPlacements()
     }

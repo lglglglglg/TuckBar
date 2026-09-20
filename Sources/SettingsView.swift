@@ -3,6 +3,7 @@ import SwiftUI
 private enum PreferencesPage: String, CaseIterable, Identifiable {
     case general
     case layout
+    case guide
     case about
 
     var id: Self { self }
@@ -11,6 +12,7 @@ private enum PreferencesPage: String, CaseIterable, Identifiable {
         switch self {
         case .general: "通用设置"
         case .layout: "菜单栏布局"
+        case .guide: "使用教程"
         case .about: "帮助与关于"
         }
     }
@@ -19,9 +21,19 @@ private enum PreferencesPage: String, CaseIterable, Identifiable {
         switch self {
         case .general: "gearshape.fill"
         case .layout: "menubar.rectangle"
+        case .guide: "play.rectangle.fill"
         case .about: "info.circle.fill"
         }
     }
+}
+
+private enum LayoutFilter: String, CaseIterable, Identifiable {
+    case all = "全部"
+    case visible = "常显"
+    case hidden = "已收纳"
+    case alwaysHidden = "始终隐藏"
+
+    var id: String { rawValue }
 }
 
 struct SettingsView: View {
@@ -36,6 +48,7 @@ struct SettingsView: View {
 
     @State private var selectedPage: PreferencesPage = .general
     @State private var searchKeyword = ""
+    @State private var layoutFilter: LayoutFilter = .all
 
     var body: some View {
         HStack(spacing: 0) {
@@ -119,6 +132,8 @@ struct SettingsView: View {
             generalPage
         case .layout:
             layoutPage
+        case .guide:
+            guidePage
         case .about:
             aboutPage
         }
@@ -167,6 +182,20 @@ struct SettingsView: View {
                 Divider().overlay(.white.opacity(0.14))
 
                 Toggle("鼠标悬停在 TuckBar 图标时自动展开", isOn: $model.openOnHover)
+
+                Toggle("在菜单栏区域滑动滚轮/双指手势展开或收起", isOn: $model.triggerOnScroll)
+
+                Toggle(isOn: $model.enableGlobalHotkey) {
+                    HStack {
+                        Text("启用全局快捷键展开/收起")
+                        Spacer()
+                        Text("⌥ B")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
+                    }
+                }
 
                 if model.displayMode == .menuBar {
                     Divider().overlay(.white.opacity(0.14))
@@ -226,22 +255,32 @@ struct SettingsView: View {
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.72))
 
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.white.opacity(0.5))
-                TextField("搜索菜单栏项目名称或 Bundle ID…", text: $searchKeyword)
-                    .textFieldStyle(.plain)
-                    .foregroundStyle(.white)
-                if !searchKeyword.isEmpty {
-                    Button(action: { searchKeyword = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.5))
+            HStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.white.opacity(0.5))
+                    TextField("搜索菜单栏项目名称或 Bundle ID…", text: $searchKeyword)
+                        .textFieldStyle(.plain)
+                        .foregroundStyle(.white)
+                    if !searchKeyword.isEmpty {
+                        Button(action: { searchKeyword = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(10)
+                .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                Picker("", selection: $layoutFilter) {
+                    ForEach(LayoutFilter.allCases) { filter in
+                        Text(filter.rawValue).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 250)
             }
-            .padding(10)
-            .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             SettingsCard(padding: 0) {
                 if manageableItems.isEmpty {
@@ -280,10 +319,19 @@ struct SettingsView: View {
                 .font(.callout.weight(.medium))
                 .foregroundStyle(model.isHidingApplied ? Color.green.opacity(0.92) : .white.opacity(0.68))
 
-            HStack {
+            HStack(spacing: 10) {
                 Button("重新扫描", action: refreshItems)
+                Button("全部移入收纳") {
+                    model.setAllPlacement(.hidden, for: manageableItems)
+                    applyHiddenItems()
+                }
+                .disabled(manageableItems.isEmpty)
+
                 Button("重新整理", action: applyHiddenItems)
                     .disabled(model.managedItems.isEmpty || !model.hasAccessibilityPermission)
+
+                Spacer()
+
                 Button("暂时展开全部", action: revealAllItems)
             }
             .buttonStyle(.bordered)
@@ -292,13 +340,15 @@ struct SettingsView: View {
 
     private var guidePage: some View {
         VStack(alignment: .leading, spacing: 22) {
-            PageTitle(symbol: "play.rectangle.fill", title: "使用教程")
+            PageTitle(symbol: "play.rectangle.fill", title: "使用教程与技巧")
             SettingsCard {
-                GuideRow(number: "1", title: "完成授权", detail: "辅助功能负责操作原项目，屏幕录制负责显示原图标。")
+                GuideRow(number: "1", title: "系统授权", detail: "首次使用需授予“辅助功能”以操作原生图标，授予“屏幕录制”以高清渲染原始菜单栏图标。")
                 Divider().overlay(.white.opacity(0.14))
-                GuideRow(number: "2", title: "选择项目分区", detail: "隐藏项目进入聚合条；始终隐藏项目不会出现在聚合条。")
+                GuideRow(number: "2", title: "按需展开 / 收起", detail: "左键点击 TuckBar 图标、或悬停、或在菜单栏区域滑动滚轮/触控板双指，即可流畅展开或收起隐藏图标。")
                 Divider().overlay(.white.opacity(0.14))
-                GuideRow(number: "3", title: "打开聚合条", detail: "点击或悬停菜单栏双箭头，点击图标即可操作原生菜单。")
+                GuideRow(number: "3", title: "全局快捷键 ⌥ B", detail: "在任何应用全屏或专注状态下，直接按下 Option + B（⌥ B）即可瞬间呼出菜单栏收纳。")
+                Divider().overlay(.white.opacity(0.14))
+                GuideRow(number: "4", title: "右键菜单与分区控制", detail: "右键 TuckBar 图标可唤出快捷功能；在布局设置或浮窗中可将图标设为常显、隐藏或始终隐藏。")
             }
         }
     }
@@ -312,20 +362,47 @@ struct SettingsView: View {
                     .foregroundStyle(.white.opacity(0.72))
             }
             SettingsCard {
-                StatusRow(title: "版本", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
+                StatusRow(title: "软件名称", value: Brand.name)
                 Divider().overlay(.white.opacity(0.14))
-                StatusRow(title: "系统要求", value: "macOS 14 或更高版本")
+                StatusRow(title: "当前版本", value: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.9.7") (Build \(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "36"))")
                 Divider().overlay(.white.opacity(0.14))
-                StatusRow(title: "数据", value: "全部保存在本机")
+                StatusRow(title: "系统要求", value: "macOS 14 (Sonoma) 或更高版本")
+                Divider().overlay(.white.opacity(0.14))
+                StatusRow(title: "数据存储", value: "全部保存在本机沙盒，无需网络连接")
+                Divider().overlay(.white.opacity(0.14))
+                HStack {
+                    Text("开源代码仓库")
+                    Spacer()
+                    Link(destination: URL(string: "https://github.com/lglglglglg/TuckBar")!) {
+                        HStack(spacing: 4) {
+                            Text("GitHub")
+                            Image(systemName: "arrow.up.right")
+                                .font(.caption2)
+                        }
+                    }
+                    .font(.callout.weight(.medium))
+                }
             }
         }
     }
 
     private var manageableItems: [MenuBarItemDescriptor] {
         let base = model.discoveredItems.filter { !$0.identifier.hasPrefix("unidentified.") }
+        let filteredByTab: [MenuBarItemDescriptor]
+        switch layoutFilter {
+        case .all:
+            filteredByTab = base
+        case .visible:
+            filteredByTab = base.filter { model.placement(for: $0) == .visible }
+        case .hidden:
+            filteredByTab = base.filter { model.placement(for: $0) == .hidden }
+        case .alwaysHidden:
+            filteredByTab = base.filter { model.placement(for: $0) == .alwaysHidden }
+        }
+
         let keyword = searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !keyword.isEmpty else { return base }
-        return base.filter {
+        guard !keyword.isEmpty else { return filteredByTab }
+        return filteredByTab.filter {
             $0.displayName.lowercased().contains(keyword) ||
             $0.identifier.lowercased().contains(keyword)
         }
@@ -467,6 +544,12 @@ private struct LayoutItemRow: View {
                 HStack(spacing: 6) {
                     Text(item.displayName)
                         .font(.callout.weight(.medium))
+                    if item.isRunning {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 6, height: 6)
+                            .help("运行中")
+                    }
                     placementBadge
                 }
                 Text(item.identifier)

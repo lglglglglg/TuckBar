@@ -41,8 +41,17 @@ struct MenuBarItemDescriptor: Identifiable, Equatable {
         }
     }
 
+    var appURL: URL? {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier)
+    }
+
+    var isRunning: Bool {
+        if identifier.hasPrefix("unidentified.") { return true }
+        return NSWorkspace.shared.runningApplications.contains { $0.bundleIdentifier == identifier }
+    }
+
     var appIcon: NSImage? {
-        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
+        if let appURL {
             return NSWorkspace.shared.icon(forFile: appURL.path)
         }
         return nil
