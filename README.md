@@ -95,8 +95,17 @@ cd TuckBar
 
 ---
 
-## 📄 开源许可证
+## 📄 开源许可证与署名
 
-本项目基于 [MIT License](LICENSE) 协议开源，欢迎自由交流、使用与衍生开发。
+- **版权所有**：© 2026 **Stephan Li**（韩十久工作室 · Hanshijiu Studio）
+- **开源协议**：本项目基于 [MIT License](LICENSE) 协议开源，欢迎自由交流、使用与衍生开发。
 
-欢迎提交 Issue 和 Pull Request 一起把 TuckBar 打造得更加精美完善！
+---
+
+## 👨‍💻 创作团队
+
+- **工作室**：韩十久工作室 (Hanshijiu Studio)
+- **主理人**：Stephan Li
+- **项目仓库**：[https://github.com/lglglglglg/TuckBar](https://github.com/lglglglglg/TuckBar)
+
+欢迎提交 Issue 和 Pull Request，一起把 TuckBar 打造得更加精美完善！
