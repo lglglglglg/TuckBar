@@ -31,12 +31,16 @@ final class AggregatePanelController {
         }
     }
 
+    private var onOpenSettings: (() -> Void)?
+
     func refreshAndShow(
         items selectedItems: [MenuBarItemDescriptor],
         anchorWindow: NSWindow?,
+        onOpenSettings: (() -> Void)? = nil,
         activate: @escaping (MenuBarItemDescriptor) -> Void
     ) {
-        activateItem = activate
+        self.activateItem = activate
+        self.onOpenSettings = onOpenSettings
         items = selectedItems.compactMap { item in
             guard let snapshot = snapshotCache[item.persistentIdentifier] else { return nil }
             var cachedItem = item
@@ -57,9 +61,16 @@ final class AggregatePanelController {
     }
 
     private func rebuildPanel() {
-        let rootView = AggregatePanelView(items: items) { [weak self] item in
-            self?.activate(item)
-        }
+        let rootView = AggregatePanelView(
+            items: items,
+            activate: { [weak self] item in
+                self?.activate(item)
+            },
+            onOpenSettings: { [weak self] in
+                self?.hide()
+                self?.onOpenSettings?()
+            }
+        )
         let hostingController = NSHostingController(rootView: rootView)
 
         if panel == nil {

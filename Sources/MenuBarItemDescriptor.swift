@@ -41,12 +41,20 @@ struct MenuBarItemDescriptor: Identifiable, Equatable {
         }
     }
 
+    var appIcon: NSImage? {
+        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) {
+            return NSWorkspace.shared.icon(forFile: appURL.path)
+        }
+        return nil
+    }
+
     var icon: NSImage {
         if let snapshot {
             return snapshot
         }
-        // A menu-bar item is not the same as its owning app. Never use the
-        // application's icon as a misleading substitute for the original.
-        return NSImage(systemSymbolName: "questionmark.square.dashed", accessibilityDescription: "原始菜单栏图标暂不可用") ?? NSImage()
+        if let appIcon {
+            return appIcon
+        }
+        return NSImage(systemSymbolName: "menubar.rectangle", accessibilityDescription: "菜单栏图标") ?? NSImage()
     }
 }
