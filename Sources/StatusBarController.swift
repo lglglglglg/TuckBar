@@ -8,6 +8,11 @@ final class StatusBarController: NSObject {
     private let aggregatePanel = AggregatePanelController()
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
+    private var globalScrollMonitor: Any?
+    private var localScrollMonitor: Any?
+    private var globalKeyMonitor: Any?
+    private var localKeyMonitor: Any?
+    private var lastScrollToggleTime: TimeInterval = 0
     private var hoverOpenTask: Task<Void, Never>?
     private var hoverCloseTask: Task<Void, Never>?
     private var panelPresentationTask: Task<Void, Never>?
@@ -35,6 +40,8 @@ final class StatusBarController: NSObject {
         observeDisplayChanges()
         observeWorkspaceWakeEvents()
         observePointerForHoverTrigger()
+        observeScrollEvents()
+        observeKeyboardShortcut()
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(iconStyleDidChange),
@@ -51,8 +58,8 @@ final class StatusBarController: NSObject {
     }
 
     @objc func handleToggleItemAction() {
-        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
         if NSApplication.shared.currentEvent?.type == .rightMouseUp {
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
             showContextMenu()
         } else {
             toggle()
@@ -63,11 +70,14 @@ final class StatusBarController: NSObject {
         switch model.displayMode {
         case .menuBar:
             if hidingEngine.isExpanded {
+                NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
                 collapseMenuBar()
             } else {
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
                 expandMenuBar()
             }
         case .aggregate:
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
             if aggregatePanel.isVisible || panelPresentationTask != nil {
                 dismissAggregatePanel()
             } else {
@@ -91,13 +101,13 @@ final class StatusBarController: NSObject {
             autoCollapseTask = Task { [weak self] in
                 var elapsed: Double = 0
                 while elapsed < delaySeconds {
-                    try? await Task.sleep(for: .seconds(1))
+                    try? await Task.sleep(for: .milliseconds(500))
                     guard !Task.isCancelled else { return }
                     // If mouse is currently in the menu bar, pause countdown
                     if self?.isMouseInMenuBar() == true {
                         continue
                     }
-                    elapsed += 1
+                    elapsed += 0.5
                 }
                 guard !Task.isCancelled else { return }
                 self?.collapseMenuBar()
@@ -371,6 +381,11 @@ final class StatusBarController: NSObject {
             onOpenSettings: { [weak self] in
                 self?.showSettings()
             },
+            onSetPlacement: { [weak self] item, placement in
+                guard let self else { return }
+                self.model.setPlacement(placement, for: item)
+                self.applyHiddenItems()
+            },
             activate: { [weak self] item in
                 guard let self else { return }
                 self.itemActivationTask = Task { [weak self] in
@@ -447,6 +462,66 @@ final class StatusBarController: NSObject {
         localMouseMonitor = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { [weak self] event in
             Task { @MainActor in self?.pointerMoved(to: NSEvent.mouseLocation) }
             return event
+        }
+    }
+
+    private func observeScrollEvents() {
+        globalScrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            Task { @MainActor in self?.handleScrollEvent(event) }
+        }
+        localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            Task { @MainActor in self?.handleScrollEvent(event) }
+            return event
+        }
+    }
+
+    private func handleScrollEvent(_ event: NSEvent) {
+        guard model.triggerOnScroll, !isRecoveringLayout, !isActivatingItem else { return }
+        // Check if mouse is in the menu bar
+        guard isMouseInMenuBar() else { return }
+
+        // Debounce scroll gestures so continuous scrolling doesn't toggle repeatedly
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastScrollToggleTime > 0.45 else { return }
+
+        // deltaY > 0: scroll up, deltaX < 0: scroll left -> expand
+        // deltaY < 0: scroll down, deltaX > 0: scroll right -> collapse
+        let deltaY = event.scrollingDeltaY
+        let deltaX = event.scrollingDeltaX
+        let isExpandGesture = deltaY > 1.2 || deltaX < -1.2
+        let isCollapseGesture = deltaY < -1.2 || deltaX > 1.2
+
+        if model.displayMode == .menuBar {
+            if isExpandGesture, !hidingEngine.isExpanded {
+                lastScrollToggleTime = now
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+                expandMenuBar()
+            } else if isCollapseGesture, hidingEngine.isExpanded {
+                lastScrollToggleTime = now
+                NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                collapseMenuBar()
+            }
+        }
+    }
+
+    private func observeKeyboardShortcut() {
+        // Global monitor catches Option+B across other apps
+        globalKeyMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            Task { @MainActor in self?.handleKeyEvent(event) }
+        }
+        // Local monitor catches Option+B when our window is focused
+        localKeyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
+            Task { @MainActor in self?.handleKeyEvent(event) }
+            return event
+        }
+    }
+
+    private func handleKeyEvent(_ event: NSEvent) {
+        guard model.enableGlobalHotkey, !isRecoveringLayout, !isActivatingItem else { return }
+        // Key code 11 is 'B' on ANSI keyboard layout
+        // Check for Option modifier (allowing Option alone or Option+Shift)
+        if event.keyCode == 11 && event.modifierFlags.contains(.option) && !event.modifierFlags.contains(.command) && !event.modifierFlags.contains(.control) {
+            toggle()
         }
     }
 
@@ -630,7 +705,9 @@ final class StatusBarController: NSObject {
         }
         addMenuItem("打开隐藏项目浮窗", action: #selector(openAggregatePanel), to: menu)
         addMenuItem("暂时展开全部", action: #selector(revealFromMenu), to: menu)
-        addMenuItem("设置…", action: #selector(openSettings), keyEquivalent: ",", to: menu)
+        addMenuItem("重新扫描菜单栏", action: #selector(rescanFromMenu), to: menu)
+        menu.addItem(.separator())
+        addMenuItem("偏好设置…", action: #selector(openSettings), keyEquivalent: ",", to: menu)
         menu.addItem(.separator())
         addMenuItem("退出 TuckBar", action: #selector(quitApplication), keyEquivalent: "q", to: menu)
 
@@ -656,5 +733,9 @@ final class StatusBarController: NSObject {
     @objc private func openAggregatePanel() { showAggregatePanel() }
     @objc private func applyFromMenu() { applyHiddenItems() }
     @objc private func revealFromMenu() { revealAllItems() }
+    @objc private func rescanFromMenu() {
+        refreshMenuBarItems(replacingKnownItems: true)
+        applyHiddenItems()
+    }
     @objc private func quitApplication() { NSApplication.shared.terminate(nil) }
 }
