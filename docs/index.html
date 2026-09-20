@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TuckBar - 精美、轻量、可靠的 macOS 菜单栏收纳利器</title>
+  <meta name="description" content="TuckBar 是由韩十久工作室 (Hanshijiu Studio) 打造的 macOS 菜单栏图标收纳工具。支持双模式展开、滚轮手势、全局快捷键与 100% 本地隐私安全。">
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.12);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #8b5cf6;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(139, 92, 246, 0.18) 0%, transparent 40%),
+        radial-gradient(circle at 85% 25%, rgba(59, 130, 246, 0.18) 0%, transparent 40%);
+    }
+
+    /* 顶部导航 */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 48px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .brand img {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+
+    .nav-link:hover {
+      color: var(--text);
+    }
+
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .github-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: rgba(255, 255, 255, 0.24);
+    }
+
+    /* Hero 头部区域 */
+    .hero {
+      text-align: center;
+      max-width: 860px;
+      margin: 70px auto 40px;
+      padding: 0 24px;
+    }
+
+    .version-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #c4b5fd;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 800;
+      letter-spacing: -1.5px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 20px;
+      color: var(--text-muted);
+      margin-bottom: 38px;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+      transition: all 0.2s ease;
+    }
+
+    .primary-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+    }
+
+    .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .meta-tips {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    /* 特性栅格 */
+    .features {
+      max-width: 1100px;
+      margin: 100px auto 60px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      backdrop-filter: blur(16px);
+      transition: all 0.3s ease;
+    }
+
+    .feature-card:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    .feature-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+
+    .feature-desc {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* 快捷交互表格展示 */
+    .shortcuts-section {
+      max-width: 900px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .section-header h2 {
+      font-size: 34px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 16px;
+    }
+
+    .shortcut-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .shortcut-table th, .shortcut-table td {
+      padding: 16px 24px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .shortcut-table th {
+      background: rgba(255, 255, 255, 0.04);
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .shortcut-table td {
+      font-size: 15px;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: ui-monospace, monospace;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 6px;
+      color: #e2e8f0;
+    }
+
+    /* 隐私保障卡片 */
+    .privacy-box {
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 36px 40px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .privacy-icon {
+      font-size: 42px;
+    }
+
+    .privacy-text h3 {
+      font-size: 20px;
+      margin-bottom: 6px;
+    }
+
+    .privacy-text p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    /* 底部版权 */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 80px;
+    }
+
+    footer a {
+      color: var(--text);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 38px; }
+      .hero p { font-size: 17px; }
+      header { padding: 20px; }
+      .privacy-box { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 头部导航 -->
+  <header>
+    <a href="#" class="brand">
+      <img src="logo.png" alt="TuckBar Logo">
+      <span class="brand-name">TuckBar</span>
+    </a>
+    <div class="nav-links">
+      <a href="https://github.com/lglglglglg/TuckBar" target="_blank" class="github-btn">
+        <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        GitHub
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero 介绍区 -->
+  <section class="hero">
+    <div class="version-pill">
+      <span>✨ 最新版本 v0.9.7 正式发布</span>
+    </div>
+    <h1>精美、轻量、可靠的<br>macOS 菜单栏收纳利器</h1>
+    <p>专为刘海屏及图标较多的 Mac 用户精心设计。让菜单栏恢复清爽，同时随心所欲呼出与操作每一个应用。</p>
+    
+    <div class="hero-actions">
+      <a href="https://github.com/lglglglglg/TuckBar/releases" class="primary-btn" target="_blank">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        免费下载 Mac 版 (.zip)
+      </a>
+      <a href="https://github.com/lglglglglg/TuckBar" class="secondary-btn" target="_blank">
+        查看源码仓库
+      </a>
+    </div>
+    <div class="meta-tips">
+      支持 macOS 14.0 (Sonoma) 及更高版本 · 完全免费 · 开源透明
+    </div>
+  </section>
+
+  <!-- 核心功能卡片 -->
+  <section class="features">
+    <div class="feature-card">
+      <div class="feature-icon">🖥</div>
+      <div class="feature-title">双展现形态</div>
+      <div class="feature-desc">支持顶栏原生展开折叠（经典稳定），以及第二行悬浮胶囊浮岛（适配刘海屏无缝避障），随心切换。</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🖐</div>
+      <div class="feature-title">多维手势与触感</div>
+      <div class="feature-desc">除左键点击外，支持菜单栏滚轮/双指滑动呼出、悬停触发、全局快捷键 ⌥ B，并配有多级细腻触觉反馈。</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-title">100% 真实原生触发</div>
+      <div class="feature-desc">拒绝死板截图冒充。直接调用宿主原生状态项，点击准确唤出真实菜单、状态弹窗与后台控制面板。</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🟢</div>
+      <div class="feature-title">App 运行状态指示</div>
+      <div class="feature-desc">智能扫描后台真实运行状态，在偏好设置列表中以翠绿色小圆点标明活跃应用，一览无余。</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">📦</div>
+      <div class="feature-title">三层精细化分类</div>
+      <div class="feature-desc">提供【常显】、【已收纳】与【始终隐藏】三层分区。支持搜索筛选、一键批量移入收纳及浮窗右键便捷管理。</div>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">零网络 · 绝对隐私</div>
+      <div class="feature-desc">完全本地离线运行。无网络请求、无用户追踪埋点，不保存桌面录屏与截图，所有数据只存留在本机。</div>
+    </div>
+  </section>
+
+  <!-- 快捷键速查表 -->
+  <section class="shortcuts-section">
+    <div class="section-header">
+      <h2>丝滑交互方式</h2>
+      <p>多种触发方式，总有一种顺手适合你的工作流</p>
+    </div>
+
+    <table class="shortcut-table">
+      <thead>
+        <tr>
+          <th>动作</th>
+          <th>操作方式</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>展开 / 收起菜单栏</strong></td>
+          <td>单击状态栏图标，或使用全局快捷键 <span class="kbd">⌥ Option</span> + <span class="kbd">B</span></td>
+        </tr>
+        <tr>
+          <td><strong>手势展开 / 收起</strong></td>
+          <td>光标停留在菜单栏区域，向上/向左滚动展开，向下/向右滚动收起</td>
+        </tr>
+        <tr>
+          <td><strong>悬停查看</strong></td>
+          <td>鼠标移动至 TuckBar 图标上方微停即可自动展开</td>
+        </tr>
+        <tr>
+          <td><strong>浮岛快捷管理</strong></td>
+          <td>在浮岛中右键任意收纳图标，即可快速改设为“常显”或“在访达中显示”</td>
+        </tr>
+        <tr>
+          <td><strong>打开偏好设置</strong></td>
+          <td>右键图标选择“偏好设置…”，或按下快捷键 <span class="kbd">⌘ Command</span> + <span class="kbd">,</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 隐私说明区域 -->
+  <div class="privacy-box">
+    <div class="privacy-icon">🛡️</div>
+    <div class="privacy-text">
+      <h3>纯净透明的隐私保护</h3>
+      <p>TuckBar 代码遵循 MIT 协议完全开源。所需辅助功能与屏幕录制权限仅用于原生菜单点击转发及 1:1 图标快照，绝不上传任何数据。</p>
+    </div>
+  </div>
+
+  <!-- 底部页脚 -->
+  <footer>
+    <p>© 2026 <strong>Stephan Li</strong> · <a href="https://github.com/lglglglglg/TuckBar" target="_blank">韩十久工作室 (Hanshijiu Studio)</a>. 基于 MIT 协议开源。</p>
+  </footer>
+
+</body>
+</html>
