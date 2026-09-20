@@ -35,6 +35,7 @@ struct SettingsView: View {
     let quit: () -> Void
 
     @State private var selectedPage: PreferencesPage = .general
+    @State private var searchKeyword = ""
 
     var body: some View {
         HStack(spacing: 0) {
@@ -43,20 +44,20 @@ struct SettingsView: View {
 
             ScrollView {
                 pageContent
-                    .padding(.horizontal, 26)
+                    .padding(.horizontal, 28)
                     .padding(.top, 32)
-                    .padding(.bottom, 34)
+                    .padding(.bottom, 50)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.black.opacity(0.10))
         }
-        .frame(width: 780, height: 550)
+        .frame(width: 860, height: 620)
         .background {
             LinearGradient(
                 colors: [
-                    Color(red: 0.31, green: 0.23, blue: 0.55),
-                    Color(red: 0.15, green: 0.49, blue: 0.52),
-                    Color(red: 0.34, green: 0.19, blue: 0.48)
+                    Color(red: 0.28, green: 0.21, blue: 0.50),
+                    Color(red: 0.14, green: 0.44, blue: 0.48),
+                    Color(red: 0.30, green: 0.17, blue: 0.44)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -132,16 +133,60 @@ struct SettingsView: View {
 
     private var generalPage: some View {
         VStack(alignment: .leading, spacing: 24) {
-            PageTitle(symbol: "rocket.fill", title: "启动与显示")
+            PageTitle(symbol: "rocket.fill", title: "启动与常规")
 
             SettingsCard {
-                Toggle("悬停 TuckBar 图标时展开收纳条", isOn: $model.openOnHover)
-                Text("启动后自动收纳；点击菜单栏 TuckBar 图标即可展开。")
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.68))
+                Toggle("登录时自动启动 TuckBar", isOn: $model.launchAtLogin)
             }
 
-            PageTitle(symbol: "key.fill", title: "授权")
+            PageTitle(symbol: "slider.horizontal.3", title: "显示与交互")
+
+            SettingsCard {
+                Text("收纳显示模式").font(.headline)
+                Picker("收纳显示模式", selection: $model.displayMode) {
+                    ForEach(MenuBarDisplayMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(model.displayMode.description)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.68))
+
+                Divider().overlay(.white.opacity(0.14))
+
+                Text("菜单栏图标样式").font(.headline)
+                Picker("菜单栏图标样式", selection: $model.iconStyle) {
+                    ForEach(MenuBarIconStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Divider().overlay(.white.opacity(0.14))
+
+                Toggle("鼠标悬停在 TuckBar 图标时自动展开", isOn: $model.openOnHover)
+
+                if model.displayMode == .menuBar {
+                    Divider().overlay(.white.opacity(0.14))
+                    HStack {
+                        Text("展开后自动收起延时")
+                        Spacer()
+                        Picker("", selection: $model.autoCollapseDelay) {
+                            Text("5 秒").tag(5.0)
+                            Text("8 秒").tag(8.0)
+                            Text("15 秒").tag(15.0)
+                            Text("手动点击（不自动收起）").tag(0.0)
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
+                    }
+                    .font(.callout)
+                }
+            }
+
+            PageTitle(symbol: "key.fill", title: "系统授权")
 
             SettingsCard {
                 PermissionRow(
@@ -159,31 +204,54 @@ struct SettingsView: View {
                 )
             }
 
-            SettingsCard {
-                Text("运行状态").font(.headline)
-                Text(model.operationMessage)
-                    .font(.callout)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .fixedSize(horizontal: false, vertical: true)
+            if !model.hasAccessibilityPermission || !model.hasScreenRecordingPermission {
+                SettingsCard {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("部分权限尚未授予，请在上方完成授权以确保收纳正常运行。")
+                            .font(.callout)
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
             }
         }
     }
 
     private var layoutPage: some View {
-        VStack(alignment: .leading, spacing: 22) {
+        VStack(alignment: .leading, spacing: 20) {
             PageTitle(symbol: "menubar.rectangle", title: "菜单栏布局")
 
-            Text("把每一个真实菜单栏项目放进常显、隐藏或始终隐藏区域。修改后会自动应用。")
+            Text("管理每一个真实菜单栏项目：常显、隐藏或始终隐藏。修改后实时生效。")
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.72))
+
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.white.opacity(0.5))
+                TextField("搜索菜单栏项目名称或 Bundle ID…", text: $searchKeyword)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(.white)
+                if !searchKeyword.isEmpty {
+                    Button(action: { searchKeyword = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+            .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             SettingsCard(padding: 0) {
                 if manageableItems.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "menubar.rectangle")
                             .font(.system(size: 32))
-                        Text("没有发现可管理的菜单栏项目")
-                        Button("重新扫描", action: refreshItems)
+                        Text(searchKeyword.isEmpty ? "没有发现可管理的菜单栏项目" : "没有找到匹配的项目")
+                        if searchKeyword.isEmpty {
+                            Button("重新扫描", action: refreshItems)
+                        }
                     }
                     .foregroundStyle(.white.opacity(0.76))
                     .frame(maxWidth: .infinity, minHeight: 210)
@@ -254,7 +322,13 @@ struct SettingsView: View {
     }
 
     private var manageableItems: [MenuBarItemDescriptor] {
-        model.discoveredItems.filter { !$0.identifier.hasPrefix("unidentified.") }
+        let base = model.discoveredItems.filter { !$0.identifier.hasPrefix("unidentified.") }
+        let keyword = searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !keyword.isEmpty else { return base }
+        return base.filter {
+            $0.displayName.lowercased().contains(keyword) ||
+            $0.identifier.lowercased().contains(keyword)
+        }
     }
 }
 
@@ -380,15 +454,21 @@ private struct LayoutItemRow: View {
         HStack(spacing: 14) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.white.opacity(0.10))
-                Image(systemName: "menubar.rectangle")
-                    .foregroundStyle(.white.opacity(0.8))
+                    .fill(.white.opacity(0.12))
+                Image(nsImage: item.icon)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(width: 22, height: 22)
             }
             .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(item.displayName)
-                    .font(.callout.weight(.medium))
+                HStack(spacing: 6) {
+                    Text(item.displayName)
+                        .font(.callout.weight(.medium))
+                    placementBadge
+                }
                 Text(item.identifier)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.48))
@@ -405,7 +485,34 @@ private struct LayoutItemRow: View {
             .frame(width: 116)
         }
         .padding(.horizontal, 18)
-        .padding(.vertical, 11)
+        .padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var placementBadge: some View {
+        switch placement {
+        case .visible:
+            Text("常显")
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.green.opacity(0.2), in: Capsule())
+                .foregroundStyle(Color.green.opacity(0.9))
+        case .hidden:
+            Text("已收纳")
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.orange.opacity(0.2), in: Capsule())
+                .foregroundStyle(Color.orange.opacity(0.9))
+        case .alwaysHidden:
+            Text("始终隐藏")
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(Color.purple.opacity(0.2), in: Capsule())
+                .foregroundStyle(Color.purple.opacity(0.9))
+        }
     }
 }
 

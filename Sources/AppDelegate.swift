@@ -53,19 +53,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 quit: { NSApplication.shared.terminate(nil) }
             )
 
-            let window = NSWindow(contentViewController: NSHostingController(rootView: rootView))
+            let hostingController = NSHostingController(rootView: rootView)
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 860, height: 620),
+                styleMask: [.titled, .closable, .miniaturizable, .fullSizeContentView],
+                backing: .buffered,
+                defer: false
+            )
+            window.contentViewController = hostingController
             window.title = Brand.name
-            window.styleMask = [.titled, .closable, .miniaturizable, .fullSizeContentView]
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
             window.isOpaque = false
             window.backgroundColor = .clear
             window.isReleasedWhenClosed = false
+            window.isMovableByWindowBackground = true
             window.delegate = self
+            window.setContentSize(NSSize(width: 860, height: 620))
+            window.minSize = NSSize(width: 840, height: 600)
             window.center()
             settingsWindowController = NSWindowController(window: window)
         }
 
+        if let window = settingsWindowController?.window {
+            window.center()
+        }
         NSApplication.shared.activate(ignoringOtherApps: true)
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
