@@ -16,6 +16,7 @@ final class MenuBarHidingEngine {
     private lazy var alwaysHiddenBoundaryItem = statusBar.statusItem(withLength: 1)
 
     private(set) var isCollapsed = false
+    var isExpanded: Bool { !isCollapsed }
 
     init(statusBar: NSStatusBar = .system) {
         self.statusBar = statusBar
@@ -88,14 +89,17 @@ final class MenuBarHidingEngine {
         return updatedFrame.midX < updatedBoundary.midX
     }
 
-    func moveToVisibleSection(_ item: MenuBarItemDescriptor) async -> Bool {
+    func moveToVisibleSection(_ item: MenuBarItemDescriptor, force: Bool = false) async -> Bool {
         let current = currentItem(item)
         guard let toggleFrame = toggleProxyFrame(near: current.frame) else { return false }
         // A window can still have a screen-intersecting frame while macOS has
         // placed it behind the notch. Ask WindowServer whether this exact
         // window is currently on-screen instead of inferring visibility from
         // geometry alone.
-        if isWindowOnScreen(current.id) { return true }
+        // When `force` is true, skip this check — the item may be on-screen
+        // (e.g. after expandHiddenSection) but still positioned in the hidden
+        // zone (left of boundary). We must Command-drag it regardless.
+        if !force, isWindowOnScreen(current.id) { return true }
 
         let destination = CGPoint(
             x: toggleFrame.minX - max(current.frame.width, 24) / 2 - 2,
@@ -200,6 +204,15 @@ final class MenuBarHidingEngine {
     }
 
     private func currentItem(_ item: MenuBarItemDescriptor) -> MenuBarItemDescriptor {
+        if let resolved = MenuBarItemDiscovery.resolveCurrentWindow(for: item) {
+            return MenuBarItemDescriptor(
+                id: resolved.id,
+                identifier: item.identifier,
+                occurrence: item.occurrence,
+                frame: resolved.frame,
+                snapshot: item.snapshot
+            )
+        }
         guard let frame = windowFrame(id: item.id) else { return item }
         return MenuBarItemDescriptor(
             id: item.id,

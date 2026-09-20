@@ -114,4 +114,28 @@ enum MenuBarItemDiscovery {
         guard !genericWindowNames.contains(name), name.contains(".") else { return nil }
         return name
     }
+
+    /// Finds the current on-screen or off-screen window for a descriptor in case its WindowID changed
+    static func resolveCurrentWindow(for item: MenuBarItemDescriptor) -> (id: CGWindowID, frame: CGRect, ownerPID: pid_t)? {
+        // First try the known item.id directly
+        if let rows = CGWindowListCopyWindowInfo([.optionIncludingWindow], item.id) as? [[String: Any]],
+           let row = rows.first,
+           let boundsValue = row[kCGWindowBounds as String],
+           let boundsDict = boundsValue as? NSDictionary,
+           let frame = CGRect(dictionaryRepresentation: boundsDict as CFDictionary),
+           let pidNum = row[kCGWindowOwnerPID as String] as? NSNumber {
+            return (id: item.id, frame: frame, ownerPID: pid_t(pidNum.int32Value))
+        }
+
+        // If direct lookup fails, discover all candidate windows and match by identifier & occurrence
+        let allItems = discover()
+        if let match = allItems.first(where: { $0.persistentIdentifier == item.persistentIdentifier }) {
+            if let rows = CGWindowListCopyWindowInfo([.optionIncludingWindow], match.id) as? [[String: Any]],
+               let row = rows.first,
+               let pidNum = row[kCGWindowOwnerPID as String] as? NSNumber {
+                return (id: match.id, frame: match.frame, ownerPID: pid_t(pidNum.int32Value))
+            }
+        }
+        return nil
+    }
 }

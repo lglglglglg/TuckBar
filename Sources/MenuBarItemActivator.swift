@@ -23,54 +23,46 @@ enum MenuBarItemActivator {
             return false
         }
 
-        // On macOS 26 the AX Extras tree can identify an item but often cannot
-        // actually open a Control Center-hosted status item. Mature managers
-        // such as Lloyd forward a real click to the revealed window instead.
-        // The window-id fields are essential: a bare CGEvent is accepted but
-        // is delivered to no menu, which was the failure in v0.9.4/0.9.5.
-        guard isWindowOnScreen(item.id),
-              let info = windowInfo(for: item.id),
-              let frame = CGRect(dictionaryRepresentation: info.bounds as CFDictionary),
-              let ownerPID = info.ownerPID,
-              ownerPID > 0,
-              let source = CGEventSource(stateID: .hidSystemState)
-        else { return false }
+        // 1. First try AX invocation which is the cleanest, native action (AXPick/AXPress/AXShowMenu)
+        // Check if there is an existing popup before trying
+        let resolvedWindow = MenuBarItemDiscovery.resolveCurrentWindow(for: item)
+        let ownerPID = resolvedWindow?.ownerPID ?? windowInfo(for: item.id)?.ownerPID ?? 0
+        let popupBefore = ownerPID > 0 ? popupWindowIDs(ownerPID: ownerPID) : []
 
-        let location = frame.center
+        let targetFrame = resolvedWindow?.frame ?? item.frame
+        if MenuBarItemSourceResolver.pick(item, visibleFrame: targetFrame) {
+            if ownerPID > 0 && waitForPopup(ownerPID: ownerPID, excluding: popupBefore) {
+                return true
+            }
+        }
+
+        // 2. Fallback to direct CGEvent mouse click
+        // Resolve latest window ID and geometry
+        guard let currentTarget = resolvedWindow ?? windowInfo(for: item.id).flatMap({ info in
+            CGRect(dictionaryRepresentation: info.bounds as CFDictionary).map { (id: item.id, frame: $0, ownerPID: info.ownerPID ?? 0) }
+        }), currentTarget.ownerPID > 0 else {
+            return false
+        }
+
+        let location = currentTarget.frame.center
         let restore = MouseCursor.location
         let permit: CGEventFilterMask = [
             .permitLocalMouseEvents,
             .permitLocalKeyboardEvents,
             .permitSystemDefinedEvents
         ]
-        source.setLocalEventsFilterDuringSuppressionState(
-            permit,
-            state: .eventSuppressionStateRemoteMouseDrag
-        )
-        source.setLocalEventsFilterDuringSuppressionState(
-            permit,
-            state: .eventSuppressionStateSuppressionInterval
-        )
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return false }
+        source.setLocalEventsFilterDuringSuppressionState(permit, state: .eventSuppressionStateRemoteMouseDrag)
+        source.setLocalEventsFilterDuringSuppressionState(permit, state: .eventSuppressionStateSuppressionInterval)
         source.localEventsSuppressionInterval = 0
 
-        guard let down = event(.leftMouseDown, at: location, windowID: item.id, ownerPID: ownerPID, source: source),
-              let up = event(.leftMouseUp, at: location, windowID: item.id, ownerPID: ownerPID, source: source)
+        guard let down = event(.leftMouseDown, at: location, windowID: currentTarget.id, ownerPID: currentTarget.ownerPID, source: source),
+              let up = event(.leftMouseUp, at: location, windowID: currentTarget.id, ownerPID: currentTarget.ownerPID, source: source)
         else { return false }
 
-        let popupBefore = popupWindowIDs(ownerPID: ownerPID)
-        // AXMenuBarItem's native action is AXPick, not AXPress. It is the
-        // least disruptive path because it asks the owning status item to
-        // open its own menu without another cursor gesture. Do not treat an
-        // AX "success" as enough: some hosts acknowledge the action without
-        // creating a popup, so keep the window-targeted click as a fallback.
-        if MenuBarItemSourceResolver.pick(item, visibleFrame: frame),
-           waitForPopup(ownerPID: ownerPID, excluding: popupBefore) {
-            return true
-        }
-
         postClick(down: down, up: up)
-        if popupWindowIDs(ownerPID: ownerPID).subtracting(popupBefore).isEmpty {
-            usleep(120_000)
+        if currentTarget.ownerPID > 0 && popupWindowIDs(ownerPID: currentTarget.ownerPID).subtracting(popupBefore).isEmpty {
+            usleep(80_000)
             postClick(down: down, up: up)
         }
         if let restore { MouseCursor.warp(to: restore) }
@@ -78,28 +70,41 @@ enum MenuBarItemActivator {
         return true
     }
 
-    /// Wait until the host application's native menu has closed before the
-    /// caller moves the status item back to the hidden section. Some menu-bar
-    /// apps do not create a popup at all; in that case return after a short
-    /// grace period so launching those apps is not delayed.
+    /// Wait until the host application's native menu or popup has closed, or until user clicks outside / app deactivates.
     static func waitForMenuDismissal(_ item: MenuBarItemDescriptor) async -> Bool {
-        guard let info = windowInfo(for: item.id),
-              let ownerPID = info.ownerPID,
-              ownerPID > 0 else {
-            return true
+        let resolved = MenuBarItemDiscovery.resolveCurrentWindow(for: item)
+        let ownerPID = resolved?.ownerPID ?? windowInfo(for: item.id)?.ownerPID ?? 0
+        guard ownerPID > 0 else { return true }
+
+        // We listen for global mouse clicks and application deactivation to detect dismissal
+        var userClickedOutside = false
+        let clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { _ in
+            userClickedOutside = true
+        }
+        defer {
+            if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
         }
 
         var popupWasSeen = false
-        for tick in 0..<600 { // 30 seconds at 50 ms per tick
-            if Task.isCancelled { return false }
+        // Loop up to 10 seconds (200 * 50ms)
+        for tick in 0..<200 {
+            if Task.isCancelled || userClickedOutside {
+                try? await Task.sleep(for: .milliseconds(120))
+                return true
+            }
+
             let popups = popupWindowIDs(ownerPID: ownerPID)
             if !popups.isEmpty {
                 popupWasSeen = true
             } else if popupWasSeen {
+                // Was seen and now gone
+                try? await Task.sleep(for: .milliseconds(150))
                 return true
-            } else if tick >= 8 { // no native menu: app-style item
+            } else if tick >= 16 {
+                // If after 800ms no native popup menu was ever opened, it's likely an app window or toggle action
                 return true
             }
+
             try? await Task.sleep(for: .milliseconds(50))
         }
         return true

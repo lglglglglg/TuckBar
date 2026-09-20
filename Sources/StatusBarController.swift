@@ -14,6 +14,8 @@ final class StatusBarController: NSObject {
     private var panelPresentationID: UUID?
     private var layoutRecoveryTask: Task<Void, Never>?
     private var itemActivationTask: Task<Void, Never>?
+    private var autoCollapseTask: Task<Void, Never>?
+    private var outsideClickMonitor: Any?
     private var isApplyingLayout = false
     private var isRecoveringLayout = false
     private var isActivatingItem = false
@@ -33,6 +35,12 @@ final class StatusBarController: NSObject {
         observeDisplayChanges()
         observeWorkspaceWakeEvents()
         observePointerForHoverTrigger()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(iconStyleDidChange),
+            name: AppModel.iconStyleDidChangeNotification,
+            object: nil
+        )
         refreshMenuBarItems()
         restoreSavedLayoutAfterLaunch()
     }
@@ -43,6 +51,7 @@ final class StatusBarController: NSObject {
     }
 
     @objc func handleToggleItemAction() {
+        NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
         if NSApplication.shared.currentEvent?.type == .rightMouseUp {
             showContextMenu()
         } else {
@@ -51,10 +60,122 @@ final class StatusBarController: NSObject {
     }
 
     func toggle() {
-        if aggregatePanel.isVisible || panelPresentationTask != nil {
-            dismissAggregatePanel()
-        } else {
-            showAggregatePanel()
+        switch model.displayMode {
+        case .menuBar:
+            if hidingEngine.isExpanded {
+                collapseMenuBar()
+            } else {
+                expandMenuBar()
+            }
+        case .aggregate:
+            if aggregatePanel.isVisible || panelPresentationTask != nil {
+                dismissAggregatePanel()
+            } else {
+                showAggregatePanel()
+            }
+        }
+    }
+
+    func expandMenuBar(autoCollapseDelay: Double? = nil) {
+        guard !isApplyingLayout else { return }
+        autoCollapseTask?.cancel()
+        autoCollapseTask = nil
+        dismissAggregatePanel(restoreCollapsedLayout: false)
+
+        hidingEngine.expandHiddenSection()
+        updateToggleButton(isExpanded: true)
+        startOutsideClickMonitor()
+
+        let delaySeconds = autoCollapseDelay ?? model.autoCollapseDelay
+        if delaySeconds > 0 {
+            autoCollapseTask = Task { [weak self] in
+                var elapsed: Double = 0
+                while elapsed < delaySeconds {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled else { return }
+                    // If mouse is currently in the menu bar, pause countdown
+                    if self?.isMouseInMenuBar() == true {
+                        continue
+                    }
+                    elapsed += 1
+                }
+                guard !Task.isCancelled else { return }
+                self?.collapseMenuBar()
+            }
+        }
+    }
+
+    func collapseMenuBar() {
+        autoCollapseTask?.cancel()
+        autoCollapseTask = nil
+        stopOutsideClickMonitor()
+        dismissAggregatePanel(restoreCollapsedLayout: false)
+
+        hidingEngine.collapse()
+        updateToggleButton(isExpanded: false)
+    }
+
+    private func isMouseInMenuBar() -> Bool {
+        guard let screen = toggleItem.button?.window?.screen ?? NSScreen.main else { return false }
+        let menuBarBottom = screen.frame.maxY - (NSStatusBar.system.thickness + 5)
+        return NSEvent.mouseLocation.y >= menuBarBottom
+    }
+
+    private func updateToggleButton(isExpanded: Bool) {
+        guard let button = toggleItem.button else { return }
+        button.toolTip = isExpanded ? "TuckBar：点击收起" : "TuckBar：点击展开"
+
+        switch model.iconStyle {
+        case .chevron:
+            let symbol = isExpanded ? "chevron.right" : "chevron.left"
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+            let img = NSImage(systemSymbolName: symbol, accessibilityDescription: "TuckBar")?.withSymbolConfiguration(config)
+            img?.isTemplate = true
+            button.image = img ?? Brand.image(size: 21, colored: false)
+
+        case .dots:
+            let symbol = isExpanded ? "circle.grid.2x1.fill" : "circle.grid.2x1"
+            let config = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+            let img = NSImage(systemSymbolName: symbol, accessibilityDescription: "TuckBar")?.withSymbolConfiguration(config)
+            img?.isTemplate = true
+            button.image = img ?? Brand.image(size: 21, colored: false)
+
+        case .brand:
+            if isExpanded {
+                let config = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+                let img = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "收起")?.withSymbolConfiguration(config)
+                img?.isTemplate = true
+                button.image = img ?? Brand.image(size: 21, colored: false)
+            } else {
+                button.image = Brand.image(size: 21, colored: false)
+            }
+        }
+    }
+
+    @objc private func iconStyleDidChange() {
+        updateToggleButton(isExpanded: hidingEngine.isExpanded)
+    }
+
+    private func startOutsideClickMonitor() {
+        guard outsideClickMonitor == nil else { return }
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            Task { @MainActor in
+                guard let self else { return }
+                if let screen = self.toggleItem.button?.window?.screen ?? NSScreen.main {
+                    let menuBarHeight = NSStatusBar.system.thickness + 5
+                    let clickY = NSEvent.mouseLocation.y
+                    if clickY < screen.frame.maxY - menuBarHeight {
+                        self.collapseMenuBar()
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopOutsideClickMonitor() {
+        if let monitor = outsideClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            outsideClickMonitor = nil
         }
     }
 
@@ -247,6 +368,9 @@ final class StatusBarController: NSObject {
         aggregatePanel.refreshAndShow(
             items: selectedItems,
             anchorWindow: toggleItem.button?.window,
+            onOpenSettings: { [weak self] in
+                self?.showSettings()
+            },
             activate: { [weak self] item in
                 guard let self else { return }
                 self.itemActivationTask = Task { [weak self] in
@@ -290,10 +414,6 @@ final class StatusBarController: NSObject {
     }
 
     private func activateHiddenItem(_ item: MenuBarItemDescriptor) async {
-        // A panel button starts a serialized reveal/click/rehide transaction.
-        // The item is moved directly from its off-screen window frame; we do
-        // not expand the whole hidden section, so neighbouring icons never
-        // flash back into the first row.
         guard !isActivatingItem else { return }
         isActivatingItem = true
         defer {
@@ -305,56 +425,19 @@ final class StatusBarController: NSObject {
         hoverOpenTask = nil
         hoverCloseTask?.cancel()
         hoverCloseTask = nil
-        let moved = await hidingEngine.moveToVisibleSection(item)
-        guard moved else {
-            model.updateHidingState(
-                applied: true,
-                message: "暂时无法显示该菜单栏项目，请稍后重试"
-            )
-            hidingEngine.collapse()
-            return
-        }
+        aggregatePanel.hide()
 
-        guard await waitUnlessCancelled(.milliseconds(160)) else {
-            hidingEngine.collapse()
-            return
-        }
-
-        guard MenuBarItemActivator.activate(item) else {
-            model.updateHidingState(applied: true, message: "菜单栏项目暂时无法打开，请稍后重试")
-            hidingEngine.collapse()
-            return
-        }
-
-        // Keep the native menu alive while it is actually open. A fixed
-        // one-second delay races the host menu: it can be moved off-screen
-        // just after opening, which looks like a dead click to the user.
-        guard await MenuBarItemActivator.waitForMenuDismissal(item) else {
-            hidingEngine.collapse()
-            return
-        }
-
-        var restored = false
-        for _ in 0..<3 {
-            if await hidingEngine.moveToHiddenSection(item) {
-                hidingEngine.collapse()
-                try? await Task.sleep(for: .milliseconds(180))
-                let remainsVisible = MenuBarItemDiscovery.discover(on: currentScreenFrame)
-                    .contains { $0.persistentIdentifier == item.persistentIdentifier }
-                if !remainsVisible {
-                    restored = true
-                    break
-                }
+        // 1. If it's a running application with a window, activate it!
+        if !item.identifier.hasPrefix("unidentified.") {
+            let runningApps = NSWorkspace.shared.runningApplications
+            if let app = runningApps.first(where: { $0.bundleIdentifier == item.identifier }) {
+                app.activate(options: [.activateIgnoringOtherApps])
             }
-            hidingEngine.collapse()
-            guard await waitUnlessCancelled(.milliseconds(180)) else { break }
         }
-        if !restored {
-            model.updateHidingState(
-                applied: true,
-                message: "项目已打开，但暂时无法自动收回；请重新扫描"
-            )
-        }
+
+        // 2. Expand the menu bar so the user can easily see and click the status item!
+        expandMenuBar(autoCollapseDelay: 10.0)
+        model.updateHidingState(applied: true, message: "已展开菜单栏（\(item.displayName)）")
     }
 
     private func observePointerForHoverTrigger() {
@@ -371,12 +454,28 @@ final class StatusBarController: NSObject {
         guard !isRecoveringLayout, !isActivatingItem else { return }
         let triggerFrame = toggleItem.button?.window?.frame.insetBy(dx: -5, dy: -4)
         let isOverTrigger = triggerFrame?.contains(point) == true
-        let isOverPanel = aggregatePanel.contains(point)
 
+        if model.displayMode == .menuBar {
+            if isOverTrigger, model.openOnHover {
+                hoverCloseTask?.cancel()
+                hoverCloseTask = nil
+                guard !hidingEngine.isExpanded, hoverOpenTask == nil else { return }
+                hoverOpenTask = Task { [weak self] in
+                    try? await Task.sleep(for: .milliseconds(180))
+                    guard !Task.isCancelled else { return }
+                    self?.expandMenuBar()
+                    self?.hoverOpenTask = nil
+                }
+            } else {
+                hoverOpenTask?.cancel()
+                hoverOpenTask = nil
+            }
+            return
+        }
+
+        // Aggregate floating panel mode
+        let isOverPanel = aggregatePanel.contains(point)
         if isOverTrigger, model.openOnHover {
-            // Re-assert the collapsed boundary as soon as the pointer enters
-            // the trigger. This covers the case where macOS restored the
-            // status-item layout after wake before the delayed hover action.
             if !isApplyingLayout {
                 restoreCollapsedLayoutIfNeeded()
             }
@@ -524,7 +623,12 @@ final class StatusBarController: NSObject {
 
     private func showContextMenu() {
         let menu = NSMenu()
-        addMenuItem("打开隐藏项目面板", action: #selector(openAggregatePanel), to: menu)
+        if hidingEngine.isExpanded {
+            addMenuItem("收起隐藏项目", action: #selector(collapseFromMenu), to: menu)
+        } else {
+            addMenuItem("展开隐藏项目", action: #selector(expandFromMenu), to: menu)
+        }
+        addMenuItem("打开隐藏项目浮窗", action: #selector(openAggregatePanel), to: menu)
         addMenuItem("暂时展开全部", action: #selector(revealFromMenu), to: menu)
         addMenuItem("设置…", action: #selector(openSettings), keyEquivalent: ",", to: menu)
         menu.addItem(.separator())
@@ -546,6 +650,8 @@ final class StatusBarController: NSObject {
         menu.addItem(item)
     }
 
+    @objc private func expandFromMenu() { expandMenuBar() }
+    @objc private func collapseFromMenu() { collapseMenuBar() }
     @objc private func openSettings() { showSettings() }
     @objc private func openAggregatePanel() { showAggregatePanel() }
     @objc private func applyFromMenu() { applyHiddenItems() }
