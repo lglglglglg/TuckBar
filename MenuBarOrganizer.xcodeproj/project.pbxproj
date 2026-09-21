@@ -17,6 +17,8 @@
 		773B1D11BE3555852E37E9AD /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7520F8C42EB7DF9DA7FDE575 /* StatusBarController.swift */; };
 		8A491C18A3EB8C445F790F94 /* TuckBarBrand.png in Resources */ = {isa = PBXBuildFile; fileRef = 51545B43A80D031F86640E2C /* TuckBarBrand.png */; };
 		995D713BB2139C50AC76A0DA /* MenuBarHidingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 021B11FF4FBB4ABC778B2BF1 /* MenuBarHidingEngine.swift */; };
+		9D77DEFEB5AF70BE5EE3D6AE /* WeChatPay.jpg in Resources */ = {isa = PBXBuildFile; fileRef = C8DF4E65B1527DA090D82152 /* WeChatPay.jpg */; };
+		9DA720A6457DBBE0A3D28EDA /* AliPay.jpg in Resources */ = {isa = PBXBuildFile; fileRef = BC2821EA578B6DDA5C6979EF /* AliPay.jpg */; };
 		A4DF86D9A42442329575C9E1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 57D4956958FC413A74B6F547 /* Assets.xcassets */; };
 		A73B4E40EF8737038CDFBFDA /* AggregatePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71166A79B51263C947A6638C /* AggregatePanelView.swift */; };
 		AA308799FC4408A174753F2C /* HidingGeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BCAB42BD4C7A0E1522CE320 /* HidingGeometryTests.swift */; };
@@ -58,6 +60,8 @@
 		832742C490B205A5F8A95F26 /* MenuBarItemDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemDiscovery.swift; sourceTree = "<group>"; };
 		899F5411C3BD6401A89FAF33 /* MenuBarOrganizer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MenuBarOrganizer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C490FEDB8EDD2C8C1898E0B /* MenuBarItemActivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemActivator.swift; sourceTree = "<group>"; };
+		BC2821EA578B6DDA5C6979EF /* AliPay.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = AliPay.jpg; sourceTree = "<group>"; };
+		C8DF4E65B1527DA090D82152 /* WeChatPay.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = WeChatPay.jpg; sourceTree = "<group>"; };
 		D56D8E4A832A2285065CDB6B /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		E6D15E9916FED888733E0B00 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		E8147FEAB288E54141CD0EA0 /* MenuBarItemSnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarItemSnapshotService.swift; sourceTree = "<group>"; };
@@ -119,8 +123,10 @@
 		F52A39AA80C05792FA0884EB /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				BC2821EA578B6DDA5C6979EF /* AliPay.jpg */,
 				57D4956958FC413A74B6F547 /* Assets.xcassets */,
 				51545B43A80D031F86640E2C /* TuckBarBrand.png */,
+				C8DF4E65B1527DA090D82152 /* WeChatPay.jpg */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -203,8 +209,10 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9DA720A6457DBBE0A3D28EDA /* AliPay.jpg in Resources */,
 				A4DF86D9A42442329575C9E1 /* Assets.xcassets in Resources */,
 				8A491C18A3EB8C445F790F94 /* TuckBarBrand.png in Resources */,
+				9D77DEFEB5AF70BE5EE3D6AE /* WeChatPay.jpg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

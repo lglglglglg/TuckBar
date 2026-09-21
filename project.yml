@@ -19,6 +19,10 @@ targets:
       - Sources
       - path: Resources/TuckBarBrand.png
         buildPhase: resources
+      - path: Resources/WeChatPay.jpg
+        buildPhase: resources
+      - path: Resources/AliPay.jpg
+        buildPhase: resources
       - path: Resources/Assets.xcassets
         buildPhase: resources
     settings:
