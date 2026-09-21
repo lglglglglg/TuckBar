@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>精美、轻量、可靠的 macOS 菜单栏收纳利器</b><br>
-  灵感融合 iBar 与 Ice，专为刘海屏及多图标用户量身打造。
+  精简优雅、针对原生菜单栏与刘海屏深度优化。
 </p>
 
 <p align="center">
@@ -78,7 +78,7 @@ cd TuckBar
 ./scripts/package-stable.sh
 ```
 
-构建产物将输出至 `dist/TuckBar.app` 与 `dist/TuckBar-0.9.7.zip`。
+构建产物将输出至 `dist/TuckBar.app`、`dist/TuckBar-0.9.7.dmg` 安装镜像与 `dist/TuckBar-0.9.7.zip`。
 
 ---
 

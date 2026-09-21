@@ -34,3 +34,7 @@ rm -f "$versioned_archive"
 ditto -c -k --sequesterRsrc --keepParent "$stable_app" "$versioned_archive"
 codesign --verify --deep --strict "$stable_app"
 codesign -d -r- "$stable_app"
+
+echo "📦 正在自动生成 DMG 安装包..."
+"$project_root/scripts/create-dmg.sh"
+
