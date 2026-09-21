@@ -2,7 +2,6 @@ import SwiftUI
 
 private enum PreferencesPage: String, CaseIterable, Identifiable {
     case general
-    case layout
     case guide
     case about
 
@@ -11,7 +10,6 @@ private enum PreferencesPage: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: "通用设置"
-        case .layout: "菜单栏布局"
         case .guide: "使用教程"
         case .about: "帮助与关于"
         }
@@ -20,21 +18,12 @@ private enum PreferencesPage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .general: "gearshape.fill"
-        case .layout: "menubar.rectangle"
         case .guide: "play.rectangle.fill"
         case .about: "info.circle.fill"
         }
     }
 }
 
-private enum LayoutFilter: String, CaseIterable, Identifiable {
-    case all = "全部"
-    case visible = "常显"
-    case hidden = "已收纳"
-    case alwaysHidden = "始终隐藏"
-
-    var id: String { rawValue }
-}
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
@@ -47,8 +36,6 @@ struct SettingsView: View {
     let quit: () -> Void
 
     @State private var selectedPage: PreferencesPage = .general
-    @State private var searchKeyword = ""
-    @State private var layoutFilter: LayoutFilter = .all
 
     var body: some View {
         HStack(spacing: 0) {
@@ -130,8 +117,6 @@ struct SettingsView: View {
         switch selectedPage {
         case .general:
             generalPage
-        case .layout:
-            layoutPage
         case .guide:
             guidePage
         case .about:
@@ -247,97 +232,6 @@ struct SettingsView: View {
         }
     }
 
-    private var layoutPage: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            PageTitle(symbol: "menubar.rectangle", title: "菜单栏布局")
-
-            Text("管理每一个真实菜单栏项目：常显、隐藏或始终隐藏。修改后实时生效。")
-                .font(.callout)
-                .foregroundStyle(.white.opacity(0.72))
-
-            HStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.white.opacity(0.5))
-                    TextField("搜索菜单栏项目名称或 Bundle ID…", text: $searchKeyword)
-                        .textFieldStyle(.plain)
-                        .foregroundStyle(.white)
-                    if !searchKeyword.isEmpty {
-                        Button(action: { searchKeyword = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.white.opacity(0.5))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(10)
-                .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                Picker("", selection: $layoutFilter) {
-                    ForEach(LayoutFilter.allCases) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 250)
-            }
-
-            SettingsCard(padding: 0) {
-                if manageableItems.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "menubar.rectangle")
-                            .font(.system(size: 32))
-                        Text(searchKeyword.isEmpty ? "没有发现可管理的菜单栏项目" : "没有找到匹配的项目")
-                        if searchKeyword.isEmpty {
-                            Button("重新扫描", action: refreshItems)
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.76))
-                    .frame(maxWidth: .infinity, minHeight: 210)
-                } else {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(manageableItems.enumerated()), id: \.element.id) { index, item in
-                            LayoutItemRow(
-                                item: item,
-                                placement: Binding(
-                                    get: { model.placement(for: item) },
-                                    set: { newPlacement in
-                                        model.setPlacement(newPlacement, for: item)
-                                        applyHiddenItems()
-                                    }
-                                )
-                            )
-                            if index < manageableItems.count - 1 {
-                                Divider().overlay(.white.opacity(0.12))
-                            }
-                        }
-                    }
-                }
-            }
-
-            Text(model.operationMessage)
-                .font(.callout.weight(.medium))
-                .foregroundStyle(model.isHidingApplied ? Color.green.opacity(0.92) : .white.opacity(0.68))
-
-            HStack(spacing: 10) {
-                Button("重新扫描", action: refreshItems)
-                Button("全部移入收纳") {
-                    model.setAllPlacement(.hidden, for: manageableItems)
-                    applyHiddenItems()
-                }
-                .disabled(manageableItems.isEmpty)
-
-                Button("重新整理", action: applyHiddenItems)
-                    .disabled(model.managedItems.isEmpty || !model.hasAccessibilityPermission)
-
-                Spacer()
-
-                Button("暂时展开全部", action: revealAllItems)
-            }
-            .buttonStyle(.bordered)
-        }
-    }
-
     private var guidePage: some View {
         VStack(alignment: .leading, spacing: 22) {
             PageTitle(symbol: "play.rectangle.fill", title: "使用教程与技巧")
@@ -348,7 +242,7 @@ struct SettingsView: View {
                 Divider().overlay(.white.opacity(0.14))
                 GuideRow(number: "3", title: "全局快捷键 ⌥ B", detail: "在任何应用全屏或专注状态下，直接按下 Option + B（⌥ B）即可瞬间呼出菜单栏收纳。")
                 Divider().overlay(.white.opacity(0.14))
-                GuideRow(number: "4", title: "右键菜单与分区控制", detail: "右键 TuckBar 图标可唤出快捷功能；在布局设置或浮窗中可将图标设为常显、隐藏或始终隐藏。")
+                GuideRow(number: "4", title: "快捷菜单与重新扫描", detail: "右键 TuckBar 图标可唤出快捷功能菜单，随时进行重新扫描、收起或暂时展开全部。")
             }
         }
     }
@@ -357,8 +251,8 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 22) {
             PageTitle(symbol: "info.circle.fill", title: "帮助与关于")
             SettingsCard {
-                Text("启动后自动收纳第三方图标。在“菜单栏布局”中选择常显、隐藏或始终隐藏，修改会自动应用。")
-                Text("点击或悬停 TuckBar 图标展开收纳条，再点击图标打开原菜单。“始终隐藏”的项目不会出现在收纳条中。")
+                Text("启动后自动收纳第三方图标，无需繁琐配置，开箱即用。")
+                Text("点击或悬停 TuckBar 图标展开收纳条，再次点击图标即可直接打开原应用菜单。")
                     .foregroundStyle(.white.opacity(0.72))
             }
             SettingsCard {
@@ -387,28 +281,6 @@ struct SettingsView: View {
                     .font(.callout.weight(.medium))
                 }
             }
-        }
-    }
-
-    private var manageableItems: [MenuBarItemDescriptor] {
-        let base = model.discoveredItems.filter { !$0.identifier.hasPrefix("unidentified.") }
-        let filteredByTab: [MenuBarItemDescriptor]
-        switch layoutFilter {
-        case .all:
-            filteredByTab = base
-        case .visible:
-            filteredByTab = base.filter { model.placement(for: $0) == .visible }
-        case .hidden:
-            filteredByTab = base.filter { model.placement(for: $0) == .hidden }
-        case .alwaysHidden:
-            filteredByTab = base.filter { model.placement(for: $0) == .alwaysHidden }
-        }
-
-        let keyword = searchKeyword.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !keyword.isEmpty else { return filteredByTab }
-        return filteredByTab.filter {
-            $0.displayName.lowercased().contains(keyword) ||
-            $0.identifier.lowercased().contains(keyword)
         }
     }
 }
@@ -527,81 +399,6 @@ private struct StatusRow: View {
     }
 }
 
-private struct LayoutItemRow: View {
-    let item: MenuBarItemDescriptor
-    @Binding var placement: MenuBarItemPlacement
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(.white.opacity(0.12))
-                Image(nsImage: item.icon)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
-                    .frame(width: 22, height: 22)
-            }
-            .frame(width: 36, height: 36)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(item.displayName)
-                        .font(.callout.weight(.medium))
-                    if item.isRunning {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 6, height: 6)
-                            .help("运行中")
-                    }
-                    placementBadge
-                }
-                Text(item.identifier)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.48))
-                    .lineLimit(1)
-            }
-            Spacer()
-            Picker("分区", selection: $placement) {
-                ForEach(MenuBarItemPlacement.allCases) { placement in
-                    Text(placement.title).tag(placement)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .frame(width: 116)
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 10)
-    }
-
-    @ViewBuilder
-    private var placementBadge: some View {
-        switch placement {
-        case .visible:
-            Text("常显")
-                .font(.system(size: 10, weight: .semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.green.opacity(0.2), in: Capsule())
-                .foregroundStyle(Color.green.opacity(0.9))
-        case .hidden:
-            Text("已收纳")
-                .font(.system(size: 10, weight: .semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.orange.opacity(0.2), in: Capsule())
-                .foregroundStyle(Color.orange.opacity(0.9))
-        case .alwaysHidden:
-            Text("始终隐藏")
-                .font(.system(size: 10, weight: .semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.purple.opacity(0.2), in: Capsule())
-                .foregroundStyle(Color.purple.opacity(0.9))
-        }
-    }
-}
 
 private struct GuideRow: View {
     let number: String
