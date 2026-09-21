@@ -4,7 +4,7 @@ set -euo pipefail
 project_root="${0:A:h:h}"
 dist_dir="$project_root/dist"
 app_path="$dist_dir/TuckBar.app"
-dmg_path="$dist_dir/TuckBar-0.9.7.dmg"
+dmg_path="$dist_dir/TuckBar-0.9.8.dmg"
 vol_name="TuckBar"
 tmp_dir=$(mktemp -d)
 

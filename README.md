@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/macOS-14.0%2B-blue?logo=apple" alt="macOS 14.0+">
   <img src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift" alt="Swift 6.0">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-0.9.7-purple" alt="Version 0.9.7">
+  <img src="https://img.shields.io/badge/Version-0.9.8-purple" alt="Version 0.9.8">
 </p>
 
 ---
@@ -64,7 +64,7 @@ TuckBar 承诺不收集任何个人数据，无需连网，详情请查阅完整
 ## 🚀 下载与安装
 
 ### 预编译版本下载
-前往 [Releases 页面](https://github.com/lglglglglg/TuckBar/releases) 下载最新发布的 `TuckBar-0.9.7.zip`，解压后拖入「应用程序（Applications）」文件夹即可运行。
+前往 [Releases 页面](https://github.com/lglglglglg/TuckBar/releases) 下载最新发布的 `TuckBar-0.9.8.dmg` 或 `TuckBar-0.9.8.zip`，双击后将 TuckBar 拖入「应用程序（Applications）」文件夹即可运行。
 
 ### 本地编译源码
 要求环境：macOS 14.0+，Xcode 15+，已安装 [xcodegen](https://github.com/yonaskolb/XcodeGen)。
@@ -78,7 +78,7 @@ cd TuckBar
 ./scripts/package-stable.sh
 ```
 
-构建产物将输出至 `dist/TuckBar.app`、`dist/TuckBar-0.9.7.dmg` 安装镜像与 `dist/TuckBar-0.9.7.zip`。
+构建产物将输出至 `dist/TuckBar.app`、`dist/TuckBar-0.9.8.dmg` 安装镜像与 `dist/TuckBar-0.9.8.zip`。
 
 ---
 
