@@ -38,6 +38,7 @@ struct SettingsView: View {
     @State private var isTipJarPresented = false
     @State private var isLicensePresented = false
     @State private var isPrivacyPresented = false
+    @State private var isThirdPartyLicensesPresented = false
     @State private var showCopiedFeedback = false
     @State private var copiedMessage = ""
 
@@ -93,6 +94,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $isPrivacyPresented) {
             PrivacySheetView(isPresented: $isPrivacyPresented)
+        }
+        .sheet(isPresented: $isThirdPartyLicensesPresented) {
+            ThirdPartyLicensesSheetView(isPresented: $isThirdPartyLicensesPresented)
         }
         .preferredColorScheme(.dark)
     }
@@ -341,7 +345,7 @@ struct SettingsView: View {
                         .font(.callout)
                         .foregroundStyle(.white.opacity(0.72))
 
-                    Text("Alpha 内测版")
+                    Text("正式发布版")
                         .font(.system(size: 11, weight: .medium))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -373,7 +377,7 @@ struct SettingsView: View {
 
                 ActionRow(
                     title: "诊断信息",
-                    detail: "反馈问题时附上版本与系统信息"
+                    detail: "反馈问题时附上运行状态与匿名计数"
                 ) {
                     Button("复制") {
                         copyToClipboard(diagnosticInfo, message: "诊断信息已复制到剪贴板")
@@ -414,13 +418,14 @@ struct SettingsView: View {
 
                 ActionRow(
                     title: "反馈与建议",
-                    detail: "提交 Issue 或功能改进建议"
+                    detail: "在 GitHub Issues 中提交问题或建议"
                 ) {
                     Button("提交反馈") {
                         if let url = URL(string: "https://github.com/lglglglglg/TuckBar/issues/new") {
                             NSWorkspace.shared.open(url)
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                 }
 
                 Divider().overlay(.white.opacity(0.12))
@@ -443,6 +448,30 @@ struct SettingsView: View {
                         \(diagnosticInfo)
                         """
                         copyToClipboard(template, message: "反馈模板已复制到剪贴板")
+                    }
+                }
+
+                Divider().overlay(.white.opacity(0.12))
+
+                ActionRow(
+                    title: "报告安全问题",
+                    detail: "通过 GitHub 私密提交漏洞或敏感信息"
+                ) {
+                    Button("私密报告") {
+                        if let url = URL(string: "https://github.com/lglglglglg/TuckBar/security/advisories/new") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                }
+
+                Divider().overlay(.white.opacity(0.12))
+
+                ActionRow(
+                    title: "第三方许可",
+                    detail: "查看项目使用的开源组件与许可"
+                ) {
+                    Button("查看") {
+                        isThirdPartyLicensesPresented = true
                     }
                 }
 
@@ -489,24 +518,6 @@ struct SettingsView: View {
 
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("主理人")
-                        Text("产品与开源维护")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    Spacer()
-                    Link(destination: URL(string: "https://github.com/lglglglglg")!) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.right.square")
-                            Text("Stephan Li")
-                        }
-                    }
-                }
-
-                Divider().overlay(.white.opacity(0.12))
-
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
                         Text("版权所有")
                         Text("© 2026 Stephan Li（韩十久工作室 · Hanshijiu Studio）")
                             .font(.caption)
@@ -516,23 +527,10 @@ struct SettingsView: View {
                     Text("MIT License")
                         .foregroundStyle(.white.opacity(0.85))
                 }
-
-                Divider().overlay(.white.opacity(0.12))
-
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("联系邮箱")
-                        Text("项目反馈与公开联系邮箱")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    Spacer()
-                    Link("lixiaolongstephan@gmail.com", destination: URL(string: "mailto:lixiaolongstephan@gmail.com")!)
-                }
             }
 
             // 底部注脚
-            Text("问题与建议会在 GitHub Issues 中公开跟进；提交前请勿包含访问令牌、私人日历或其他敏感信息。")
+            Text("问题与建议会在 GitHub Issues 中公开跟进；漏洞或敏感信息请使用“报告安全问题”私密提交。")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.50))
                 .padding(.horizontal, 4)
@@ -936,4 +934,72 @@ private struct PrivacySheetView: View {
         }
     }
 }
+
+// MARK: - 第三方许可弹窗 (Third Party Licenses)
+private struct ThirdPartyLicensesSheetView: View {
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("第三方开源许可")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(.white)
+                Spacer()
+                Button(action: { isPresented = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("TuckBar 采用 100% 纯原生 Swift、SwiftUI、AppKit、ScreenCaptureKit 与系统辅助功能 Accessibility API 构建，无引入任何第三方专有闭源库或二进制追踪组件。")
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.85))
+
+                    Divider().overlay(.white.opacity(0.12))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Apple Frameworks & SDKs")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Text("基于 macOS 原生 SDK 构建，受 Apple 开发者协议与系统许可保护。")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.65))
+                    }
+
+                    Divider().overlay(.white.opacity(0.12))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("XcodeGen")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Text("用于工程结构生成的命令行开源工具（开发构建期辅助工具，不打包进入最终应用程序）。遵循 MIT License。")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.65))
+                    }
+                }
+                .padding(16)
+                .background(.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 10))
+            }
+            .frame(maxHeight: 320)
+
+            HStack {
+                Spacer()
+                Button("关闭") { isPresented = false }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(24)
+        .frame(width: 520, height: 440)
+        .background {
+            Color(red: 0.16, green: 0.18, blue: 0.24).ignoresSafeArea()
+        }
+    }
+}
+
 
