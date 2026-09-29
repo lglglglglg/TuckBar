@@ -282,11 +282,11 @@ struct SettingsView: View {
     }
 
     private var appVersionString: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.9.7"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.9.9"
     }
 
     private var appBuildString: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "36"
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "38"
     }
 
     private var diagnosticInfo: String {

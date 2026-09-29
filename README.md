@@ -19,7 +19,7 @@
   <img src="https://img.shields.io/badge/macOS-14.0%2B-blue?logo=apple" alt="macOS 14.0+">
   <img src="https://img.shields.io/badge/Swift-6.0-orange?logo=swift" alt="Swift 6.0">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
-  <img src="https://img.shields.io/badge/Version-0.9.8-purple" alt="Version 0.9.8">
+  <img src="https://img.shields.io/badge/Version-0.9.9-purple" alt="Version 0.9.9">
 </p>
 
 ## 关于 TuckBar
@@ -77,7 +77,7 @@ cd TuckBar
 ./scripts/package-stable.sh
 ```
 
-构建产物位于 `dist/`，包括 `TuckBar.app`、`TuckBar-0.9.8.dmg` 和 `TuckBar-0.9.8.zip`。
+构建产物位于 `dist/`，包括 `TuckBar.app`、`TuckBar-0.9.9.dmg` 和 `TuckBar-0.9.9.zip`。
 
 ## 开源与支持
 
